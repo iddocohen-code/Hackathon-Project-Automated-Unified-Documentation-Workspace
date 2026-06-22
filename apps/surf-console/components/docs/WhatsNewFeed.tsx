@@ -1,5 +1,3 @@
-"use client";
-
 /**
  * WhatsNewFeed — maps a ChangeEntry[] into a list of ChangeEntryCards.
  * Source: design-mock lines 319–356.

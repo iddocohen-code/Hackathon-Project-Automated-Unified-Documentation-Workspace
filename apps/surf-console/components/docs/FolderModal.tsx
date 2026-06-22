@@ -213,6 +213,7 @@ export default function FolderModal({
         >
           {docs.map((doc) => {
             const visual = getDocVisual(doc.id);
+            // shark-mitigation is the only doc flagged "Updated" in before-state — see content/docs/manifest.json
             const isUpdated = doc.id === "shark-mitigation";
 
             return (

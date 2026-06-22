@@ -1,5 +1,3 @@
-"use client";
-
 /**
  * ChangeEntryCard — severity-driven changelog entry card.
  * Source: design-mock lines 321–356.
@@ -60,7 +58,7 @@ export default function ChangeEntryCard({ entry }: ChangeEntryCardProps) {
         alignItems: "center",
         background: "var(--surface)",
         border: `1px solid ${borderColor}`,
-        borderLeft: `4px solid ${borderColor}`,
+        ...(high ? { borderLeft: `4px solid ${borderColor}` } : {}),
         borderRadius: 14,
         padding: "16px 18px",
         boxShadow: "var(--shadow-sm)",
