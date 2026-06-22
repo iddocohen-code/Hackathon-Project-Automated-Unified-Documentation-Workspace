@@ -36,7 +36,7 @@ export async function visionCheck(
           },
           {
             type: 'text',
-            text: `Look at this screenshot of a UI panel. Does the screenshot show the following change?\n\n"${claimedChange}"\n\nAnswer with showsChange: true if the change is clearly present in the screenshot, or false if it is absent. Include a concise one-line note explaining your reasoning.`,
+            text: `Look at this screenshot of a UI panel in its DEFAULT, freshly-loaded state. A change was made to this component, described below.\n\nIMPORTANT: part of the described change may be interactive or conditional UI that only appears AFTER a user action (a click, toggle, or state change). Those elements will NOT be visible in this static screenshot, and their absence is expected and fine.\n\nAnswer showsChange: true if the screenshot shows the main STATICALLY-VISIBLE part of the change — e.g. a newly added button, control, icon, label, or element is present in the default view. Answer false ONLY if there is no visible evidence of the change at all (the new static element is missing entirely). Do NOT require post-click / triggered / conditional states (banners, active-state pills, modals) to be visible.\n\nDescribed change:\n"${claimedChange}"\n\nInclude a concise one-line note explaining what visible evidence you based the answer on.`,
           },
         ],
       },
