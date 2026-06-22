@@ -10,6 +10,23 @@ export interface FilePatch {
 const isWatchedUI = picomatch(WATCHED_UI_GLOBS as string[]);
 
 /**
+ * Returns ALL file paths changed in `mergedSha` relative to its first parent
+ * (unfiltered — no glob matching applied here).
+ *
+ * This is the input to `isRelevant()`, which decides whether the event should
+ * be enqueued. Keeping this unfiltered ensures `isRelevant` has the full
+ * picture (watched UI files AND publish-output paths for the no-loop guard).
+ */
+export async function getChangedPaths(mergedSha: string, repoRoot: string): Promise<string[]> {
+  const git = simpleGit(repoRoot);
+  const result = await git.diff([`${mergedSha}^`, mergedSha, '--name-only']);
+  return result
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+}
+
+/**
  * Returns per-file unified-diff patches for files changed in `mergedSha`
  * relative to its first parent, filtered to the watched UI globs.
  *

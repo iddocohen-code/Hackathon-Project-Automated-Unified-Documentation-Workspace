@@ -7,7 +7,21 @@ import { makeScheduler } from './pipeline/scheduler.js';
 import type { Scheduler } from './pipeline/scheduler.js';
 import type { PullRequestEvent } from '@surf/types';
 
-export function buildApp(config?: Config, scheduler?: Scheduler) {
+export interface BuildAppOptions {
+  /**
+   * Injectable resolver that, given a PullRequestEvent, fetches the list of
+   * changed paths for the merge commit (UNFILTERED). Used by the /webhook
+   * handler to resolve relevance when GitHub's payload lacks changed-file info.
+   *
+   * If undefined (legacy / test callers), the handler falls back to using
+   * event.changedPaths as-is (which is [] for live GitHub payloads).
+   *
+   * Must resolve; on error the handler logs and responds 202 without enqueue.
+   */
+  resolveChangedPaths?: (event: PullRequestEvent) => Promise<string[]>;
+}
+
+export function buildApp(config?: Config, scheduler?: Scheduler, options?: BuildAppOptions) {
   const app = Fastify({ logger: true });
 
   // ---------------------------------------------------------------------------
@@ -78,11 +92,29 @@ export function buildApp(config?: Config, scheduler?: Scheduler) {
     const event = toPullRequestEvent(request.body);
 
     if (event !== null) {
-      // Enqueue only if the changed paths are relevant (UI source files).
-      // changedPaths is [] until Task 5 populates it from mergedSha.
-      if (isRelevant(event.changedPaths)) {
-        activeScheduler.enqueue(event);
+      const resolveChangedPaths = options?.resolveChangedPaths;
+
+      if (resolveChangedPaths !== undefined) {
+        // Resolve changed paths from the merge SHA via the injected resolver.
+        // On error: log, respond 202 (webhook acknowledged) but skip enqueue.
+        let changedPaths: string[];
+        try {
+          changedPaths = await resolveChangedPaths(event);
+        } catch (err) {
+          app.log.error({ err, prUrl: event.prUrl }, 'webhook: failed to resolve changed paths; skipping enqueue');
+          return reply.code(202).send({ status: 'accepted' });
+        }
+        event.changedPaths = changedPaths;
+        if (isRelevant(changedPaths)) {
+          activeScheduler.enqueue(event);
+        }
+      } else {
+        // Legacy / test callers without a resolver: use event.changedPaths as-is.
+        if (isRelevant(event.changedPaths)) {
+          activeScheduler.enqueue(event);
+        }
       }
+
       return reply.code(202).send({ status: 'accepted' });
     }
 

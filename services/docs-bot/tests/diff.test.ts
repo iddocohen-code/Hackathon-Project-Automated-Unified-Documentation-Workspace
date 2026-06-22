@@ -3,7 +3,7 @@ import { mkdtempSync, writeFileSync, mkdirSync, rmSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import simpleGit from 'simple-git';
-import { getDiff } from '../src/git/diff.js';
+import { getDiff, getChangedPaths } from '../src/git/diff.js';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -88,5 +88,24 @@ describe('getDiff', () => {
     const entries = await getDiff(headSha, tmpRoot);
     const paths = entries.map((e) => e.path);
     expect(paths.some((p) => p.includes('x.ts'))).toBe(false);
+  });
+});
+
+describe('getChangedPaths', () => {
+  it('returns BOTH the watched UI file AND the non-watched service file (unfiltered)', async () => {
+    await setup;
+
+    const paths = await getChangedPaths(headSha, tmpRoot);
+
+    // Both changed files must be present — getChangedPaths is unfiltered
+    expect(paths.some((p) => p.includes('SharkMitigationCard.tsx'))).toBe(true);
+    expect(paths.some((p) => p.includes('services/docs-bot/x.ts'))).toBe(true);
+  });
+
+  it('returns strings (not objects) — suitable for isRelevant()', async () => {
+    await setup;
+
+    const paths = await getChangedPaths(headSha, tmpRoot);
+    expect(paths.every((p) => typeof p === 'string')).toBe(true);
   });
 });

@@ -1,8 +1,10 @@
 import { createHmac } from 'node:crypto';
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { verifyGithubSignature } from '../src/webhook/verify.js';
 import { toPullRequestEvent } from '../src/webhook/normalize.js';
 import { buildApp } from '../src/server.js';
+import type { Scheduler } from '../src/pipeline/scheduler.js';
+import type { PullRequestEvent } from '@surf/types';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -179,5 +181,146 @@ describe('POST /webhook route', () => {
     });
 
     expect(response.statusCode).toBe(200);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Enqueue wiring tests (bug fix: resolver derives changedPaths from mergedSha)
+// ---------------------------------------------------------------------------
+
+describe('POST /webhook enqueue wiring with injected resolver', () => {
+  const TEST_SECRET = 'enqueue-wiring-test-secret';
+
+  function sign(secret: string, body: string): string {
+    const hmac = createHmac('sha256', secret);
+    hmac.update(Buffer.from(body, 'utf8'));
+    return `sha256=${hmac.digest('hex')}`;
+  }
+
+  /** Build a spy scheduler that records enqueue calls. */
+  function makeSpyScheduler(): Scheduler & { enqueuedEvents: PullRequestEvent[] } {
+    const enqueuedEvents: PullRequestEvent[] = [];
+    return {
+      enqueuedEvents,
+      enqueue(event: PullRequestEvent) {
+        enqueuedEvents.push(event);
+      },
+      async runNow() {},
+    };
+  }
+
+  it('enqueues the event when resolver returns a watched UI path', async () => {
+    const spyScheduler = makeSpyScheduler();
+
+    // Resolver returns a path that matches WATCHED_UI_GLOBS
+    const resolver = vi.fn().mockResolvedValue([
+      'apps/surf-console/components/console/SharkMitigationCard.tsx',
+    ]);
+
+    const app = buildApp(
+      { webhookSecret: TEST_SECRET, port: 0, schedulerMode: 'instant', surfConsoleUrl: 'http://localhost:3000', docsContentDir: '/tmp' },
+      spyScheduler,
+      { resolveChangedPaths: resolver },
+    );
+
+    const body = JSON.stringify(mergedPrFixture);
+    const sig = sign(TEST_SECRET, body);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/webhook',
+      headers: { 'content-type': 'application/json', 'x-hub-signature-256': sig },
+      payload: body,
+    });
+
+    expect(response.statusCode).toBe(202);
+    expect(resolver).toHaveBeenCalledOnce();
+    expect(spyScheduler.enqueuedEvents).toHaveLength(1);
+    // The event's changedPaths should be populated by the resolver
+    expect(spyScheduler.enqueuedEvents[0]!.changedPaths).toContain(
+      'apps/surf-console/components/console/SharkMitigationCard.tsx',
+    );
+  });
+
+  it('does NOT enqueue when resolver returns only publish-output paths (no-loop guard)', async () => {
+    const spyScheduler = makeSpyScheduler();
+
+    // Resolver returns only docs publish output — NOT a watched UI path
+    const resolver = vi.fn().mockResolvedValue([
+      'apps/surf-console/content/docs/shark-mitigation/index.md',
+    ]);
+
+    const app = buildApp(
+      { webhookSecret: TEST_SECRET, port: 0, schedulerMode: 'instant', surfConsoleUrl: 'http://localhost:3000', docsContentDir: '/tmp' },
+      spyScheduler,
+      { resolveChangedPaths: resolver },
+    );
+
+    const body = JSON.stringify(mergedPrFixture);
+    const sig = sign(TEST_SECRET, body);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/webhook',
+      headers: { 'content-type': 'application/json', 'x-hub-signature-256': sig },
+      payload: body,
+    });
+
+    expect(response.statusCode).toBe(202);
+    expect(resolver).toHaveBeenCalledOnce();
+    // No enqueue — publish commits must not trigger the pipeline
+    expect(spyScheduler.enqueuedEvents).toHaveLength(0);
+  });
+
+  it('returns 401 for an invalid signature regardless of resolver', async () => {
+    const spyScheduler = makeSpyScheduler();
+    const resolver = vi.fn().mockResolvedValue(['apps/surf-console/components/console/Foo.tsx']);
+
+    const app = buildApp(
+      { webhookSecret: TEST_SECRET, port: 0, schedulerMode: 'instant', surfConsoleUrl: 'http://localhost:3000', docsContentDir: '/tmp' },
+      spyScheduler,
+      { resolveChangedPaths: resolver },
+    );
+
+    const body = JSON.stringify(mergedPrFixture);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/webhook',
+      headers: {
+        'content-type': 'application/json',
+        'x-hub-signature-256': 'sha256=deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef',
+      },
+      payload: body,
+    });
+
+    expect(response.statusCode).toBe(401);
+    expect(resolver).not.toHaveBeenCalled();
+    expect(spyScheduler.enqueuedEvents).toHaveLength(0);
+  });
+
+  it('responds 202 without enqueue when resolver throws (graceful degradation)', async () => {
+    const spyScheduler = makeSpyScheduler();
+    const resolver = vi.fn().mockRejectedValue(new Error('git fetch failed'));
+
+    const app = buildApp(
+      { webhookSecret: TEST_SECRET, port: 0, schedulerMode: 'instant', surfConsoleUrl: 'http://localhost:3000', docsContentDir: '/tmp' },
+      spyScheduler,
+      { resolveChangedPaths: resolver },
+    );
+
+    const body = JSON.stringify(mergedPrFixture);
+    const sig = sign(TEST_SECRET, body);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/webhook',
+      headers: { 'content-type': 'application/json', 'x-hub-signature-256': sig },
+      payload: body,
+    });
+
+    // Must not 500 — webhook is acknowledged even when resolver fails
+    expect(response.statusCode).toBe(202);
+    expect(spyScheduler.enqueuedEvents).toHaveLength(0);
   });
 });

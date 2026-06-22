@@ -1,5 +1,6 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { simpleGit } from 'simple-git';
 
 import { loadConfig } from './config.js';
 import { buildApp } from './server.js';
@@ -9,6 +10,8 @@ import { PlaywrightCapture } from './capture/capture.js';
 import { FixtureJiraSource } from './context/fixtures/jira.js';
 import { FixtureSlackSource } from './context/fixtures/slack.js';
 import { FixtureConfluenceSource } from './context/fixtures/confluence.js';
+import { getChangedPaths } from './git/diff.js';
+import type { PullRequestEvent } from '@surf/types';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, '../../..');
@@ -36,6 +39,25 @@ const runJob = makeRunJob({
   // commitFn: undefined → publisher uses the real simpleGit commit
 });
 
+// ---------------------------------------------------------------------------
+// Real changed-paths resolver
+//
+// Before diffing, we best-effort `git fetch origin` so the freshly-merged SHA
+// from GitHub is present in the local clone. Fetch failures are logged and
+// ignored — in a local/demo environment the SHA may already be present (e.g.
+// the repo was cloned recently), and failing here must NOT drop the webhook.
+// ---------------------------------------------------------------------------
+async function resolveChangedPaths(event: PullRequestEvent): Promise<string[]> {
+  const git = simpleGit(repoRoot);
+  try {
+    await git.fetch('origin');
+  } catch (err) {
+    // Best-effort: log and continue. The SHA may already be present locally.
+    console.warn({ err }, 'webhook: git fetch origin failed (best-effort, continuing)');
+  }
+  return getChangedPaths(event.mergedSha, repoRoot);
+}
+
 // Wire the real pipeline into the scheduler and start the server
 const scheduler = makeScheduler(
   {
@@ -45,5 +67,5 @@ const scheduler = makeScheduler(
   runJob,
 );
 
-const app = buildApp(config, scheduler);
+const app = buildApp(config, scheduler, { resolveChangedPaths });
 await app.listen({ port: config.port, host: '0.0.0.0' });
