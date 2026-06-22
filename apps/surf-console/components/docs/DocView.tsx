@@ -16,6 +16,7 @@ import React from "react";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import rehypeSlug from "rehype-slug";
 import type { Doc } from "@surf/types";
 import Icon from "@/components/ui/Icon";
 import Hoverable from "@/components/ui/Hoverable";
@@ -274,6 +275,7 @@ export default function DocView({ doc }: DocViewProps) {
           <div className="doc-body">
             <ReactMarkdown
               remarkPlugins={[remarkGfm]}
+              rehypePlugins={[rehypeSlug]}
               components={{
                 p: ({ children }) => (
                   <p
