@@ -133,15 +133,8 @@ export default function FolderGrid({
         </Link>
       </div>
 
-      {/* 4-up folder tile grid */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(4,1fr)",
-          gap: 22,
-          marginBottom: 8,
-        }}
-      >
+      {/* 4-up folder tile grid — responsive via .surf-folder-grid in globals.css */}
+      <div className="surf-folder-grid">
         {categories.map((cat) => (
           <FolderTile
             key={cat.id}

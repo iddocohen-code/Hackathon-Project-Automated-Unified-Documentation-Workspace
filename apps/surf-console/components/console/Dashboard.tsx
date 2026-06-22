@@ -30,8 +30,8 @@ export default function Dashboard() {
         </span>
       </div>
 
-      {/* Cards grid */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+      {/* Cards grid — responsive via .surf-dashboard-grid in globals.css */}
+      <div className="surf-dashboard-grid">
         <WaveHeightCard />
         <CurrentsCard />
         <UVAlertsCard />

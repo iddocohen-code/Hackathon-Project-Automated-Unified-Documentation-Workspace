@@ -23,7 +23,11 @@ describe('content layer', () => {
     for (const entry of changelog) {
       expect(entry.severity).toBe('info');
     }
-    expect(changelog[0].createdAt.localeCompare(changelog[1].createdAt)).toBeGreaterThanOrEqual(0);
+    const first = changelog[0];
+    const second = changelog[1];
+    expect(first).toBeDefined();
+    expect(second).toBeDefined();
+    expect(first!.createdAt.localeCompare(second!.createdAt)).toBeGreaterThanOrEqual(0);
   });
 
   it("getDoc('does-not-exist') resolves to null", async () => {

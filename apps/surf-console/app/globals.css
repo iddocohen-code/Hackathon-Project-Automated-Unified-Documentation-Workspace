@@ -120,3 +120,35 @@ html, body {
 .uw-doc-tile:hover {
   transform: translateY(-4px);
 }
+
+/* =============================================================
+   Responsive reflow — single column on narrow widths (< 1024px)
+   Additive only; desktop layout is controlled via inline styles.
+   ============================================================= */
+
+/* Dashboard 2-col card grid → 1-col */
+.surf-dashboard-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+@media (max-width: 1023px) {
+  .surf-dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Docs folder 4-col tile grid → 1-col */
+.surf-folder-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 22px;
+  margin-bottom: 8px;
+}
+
+@media (max-width: 1023px) {
+  .surf-folder-grid {
+    grid-template-columns: 1fr;
+  }
+}
