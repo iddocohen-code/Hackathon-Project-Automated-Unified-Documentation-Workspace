@@ -69,7 +69,7 @@ export function buildSections(docs: Doc[]): DocSection[] {
       if (headingMatch) {
         // Emit the previous section before starting a new one.
         flush();
-        currentHeading = headingMatch[1].trim();
+        currentHeading = headingMatch[1]!.trim();
         bodyLines = [];
       } else {
         bodyLines.push(line);

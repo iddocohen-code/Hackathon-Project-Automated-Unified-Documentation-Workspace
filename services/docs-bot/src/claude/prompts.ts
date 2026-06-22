@@ -5,6 +5,7 @@ import type { ContextRef, DocsManifest, Doc, Screenshot } from '@surf/types';
 import type { FilePatch } from '../git/diff.js';
 import type { DiffAnalysis } from './schemas.js';
 import type { CapturedStateMeta } from './writeDoc.js';
+import type { RetrievedPassage } from '../rag/retriever.js';
 
 // __dirname equivalent for ESM; prompts.ts lives at services/docs-bot/src/claude/
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -174,4 +175,38 @@ ${capturedStatesSection}
 Regenerate the documentation body to incorporate the structural change described above — add or revise the relevant step(s) to reflect it — while preserving the existing \`##\` step-heading structure, the doc's voice, and (per the screenshot note) emitting NO markdown image. Return a DocDraft object.`;
 
   return { system, userContent };
+}
+
+export interface RagPromptInput {
+  query: string;
+  passages: RetrievedPassage[];
+}
+
+/**
+ * Builds the messages array for the RAG synthesis Claude call.
+ * Returns a single user message (as an array with one element) ready for
+ * `client.messages.parse()`.
+ *
+ * Loads the editable `prompts/rag-synthesis.md` at runtime, then injects:
+ *   - PASSAGES: enumerated list of passages (index + heading + text)
+ *   - QUERY: the user's question
+ */
+export async function buildRagPrompt(input: RagPromptInput): Promise<{
+  role: 'user';
+  content: string;
+}> {
+  const template = await loadPromptFile('rag-synthesis.md');
+
+  // Enumerate passages: [0] Heading\ntext\n\n[1] Heading\ntext ...
+  const passagesSection = input.passages.length === 0
+    ? '(no passages)'
+    : input.passages
+        .map((p, i) => `[${i}] **${p.heading}** (from: ${p.docTitle})\n${p.text}`)
+        .join('\n\n');
+
+  const userContent = template
+    .replace('{{PASSAGES}}', passagesSection)
+    .replace('{{QUERY}}', input.query);
+
+  return { role: 'user', content: userContent };
 }

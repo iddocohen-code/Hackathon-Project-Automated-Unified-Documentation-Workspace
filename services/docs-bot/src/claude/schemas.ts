@@ -66,3 +66,17 @@ export const DocDraftSchema = z.object({
 });
 
 export type DocDraft = z.infer<typeof DocDraftSchema>;
+
+/**
+ * Structured output schema for RAG answer synthesis.
+ * Claude Sonnet 4.6 returns a grounded answer strictly from supplied passages
+ * and the indices of the passages it cited.
+ */
+export const RagSynthesisSchema = z.object({
+  /** The synthesized answer, written strictly from the supplied passages */
+  answer: z.string().describe('A grounded answer synthesized strictly from the supplied passages. If the passages do not contain the answer, respond with "I couldn\'t find anything about that in the current documentation."'),
+  /** Zero-based indices into the passages array that were cited to produce the answer */
+  citedPassageIndices: z.array(z.number()).describe('Zero-based indices of the passages (from the enumerated list) that were used to produce the answer. Empty array if no passages were cited.'),
+});
+
+export type RagSynthesis = z.infer<typeof RagSynthesisSchema>;
