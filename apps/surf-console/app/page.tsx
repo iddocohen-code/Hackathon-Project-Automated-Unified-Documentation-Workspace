@@ -1,3 +1,5 @@
+import Dashboard from "../components/console/Dashboard";
+
 export default function Home() {
-  return <main>Surf-Zone Console — scaffolding</main>;
+  return <Dashboard />;
 }

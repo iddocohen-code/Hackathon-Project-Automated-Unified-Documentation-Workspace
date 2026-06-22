@@ -29,7 +29,9 @@ type IconName =
   | "plus"         // TopBar add icon
   | "message-circle" // TopBar chat icon
   | "sparkles-gradient" // AI Copilot TopBar (gradient)
-  | "bell";        // Notifications
+  | "bell"         // Notifications
+  | "flag"         // Raise flag action
+  | "shield";      // Shark mitigation header
 
 interface IconProps extends React.SVGProps<SVGSVGElement> {
   name: IconName;
@@ -185,6 +187,13 @@ const PATHS: Record<IconName, React.ReactNode> = {
       <path d="M3.3 15.3A1 1 0 0 0 4 17h16a1 1 0 0 0 .7-1.7C19.4 14 18 12.5 18 8A6 6 0 0 0 6 8c0 4.5-1.4 6-2.7 7.3" />
     </>
   ),
+  flag: (
+    <>
+      <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
+      <path d="M4 22v-7" />
+    </>
+  ),
+  shield: <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />,
 };
 
 export default function Icon({ name, size = 18, stroke, ...rest }: IconProps) {
