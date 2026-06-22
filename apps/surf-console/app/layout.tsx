@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./upwind.css";
 import "./globals.css";
+import AppShell from "../components/shell/AppShell";
 
 export const metadata: Metadata = {
   title: "Surf-Zone Console",
@@ -14,7 +15,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <AppShell>{children}</AppShell>
+      </body>
     </html>
   );
 }
