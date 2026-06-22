@@ -1,8 +1,11 @@
 import 'dotenv/config';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
 
-const repoRoot = path.resolve(process.cwd(), '../..');
+// __dirname equivalent for ESM; config.ts lives at services/docs-bot/src/
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const repoRoot = path.resolve(__dirname, '../../..');
 const defaultDocsContentDir = path.resolve(repoRoot, 'apps/surf-console/content/docs');
 
 const configSchema = z.object({
