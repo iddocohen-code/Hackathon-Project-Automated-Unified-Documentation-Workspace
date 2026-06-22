@@ -2,12 +2,13 @@ import Fastify from 'fastify';
 import type { Config } from './config.js';
 import { verifyGithubSignature } from './webhook/verify.js';
 import { toPullRequestEvent } from './webhook/normalize.js';
+import type { PullRequestEvent } from '@surf/types';
 
 /**
  * Stub handler for a normalised PR event.
  * The real scheduler/pipeline is wired in Task 4.
  */
-function handlePullRequestEvent(event: ReturnType<typeof toPullRequestEvent>): void {
+function handlePullRequestEvent(event: PullRequestEvent): void {
   // no-op for now; Task 4 wires the scheduler
   void event;
 }
@@ -40,7 +41,12 @@ export function buildApp(config?: Config) {
   );
 
   app.post('/webhook', async (request, reply) => {
-    const rawBody: Buffer = (request as unknown as { rawBody: Buffer }).rawBody;
+    const rawBody: Buffer | undefined = (request as unknown as { rawBody?: Buffer }).rawBody;
+
+    if (!rawBody || rawBody.length === 0) {
+      return reply.code(400).send({ error: 'missing or unparseable body' });
+    }
+
     const sigHeader = (request.headers['x-hub-signature-256'] ?? '') as string;
     const secret = config?.webhookSecret ?? '';
 

@@ -2,6 +2,7 @@ import { createHmac } from 'node:crypto';
 import { describe, it, expect } from 'vitest';
 import { verifyGithubSignature } from '../src/webhook/verify.js';
 import { toPullRequestEvent } from '../src/webhook/normalize.js';
+import { buildApp } from '../src/server.js';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -93,7 +94,7 @@ describe('toPullRequestEvent', () => {
     );
     // changedPaths: GitHub PR webhook does not include file paths; Task 5 derives
     // real paths from the merge SHA. Default to empty array.
-    expect(Array.isArray(result!.changedPaths)).toBe(true);
+    expect(result!.changedPaths).toEqual([]);
   });
 
   it('returns null for an opened (non-merge) event', () => {
@@ -111,5 +112,72 @@ describe('toPullRequestEvent', () => {
   it('returns null for null/undefined payload', () => {
     expect(toPullRequestEvent(null)).toBeNull();
     expect(toPullRequestEvent(undefined)).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Route integration tests via app.inject()
+// ---------------------------------------------------------------------------
+
+describe('POST /webhook route', () => {
+  const TEST_SECRET = 'route-test-secret-xyz';
+
+  function sign(secret: string, body: string): string {
+    const hmac = createHmac('sha256', secret);
+    hmac.update(Buffer.from(body, 'utf8'));
+    return `sha256=${hmac.digest('hex')}`;
+  }
+
+  it('returns 202 for a valid signature over a merged-PR payload', async () => {
+    const app = buildApp({ webhookSecret: TEST_SECRET, port: 0, schedulerMode: 'instant', surfConsoleUrl: 'http://localhost:3000', docsContentDir: '/tmp' });
+    const body = JSON.stringify(mergedPrFixture);
+    const sig = sign(TEST_SECRET, body);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/webhook',
+      headers: {
+        'content-type': 'application/json',
+        'x-hub-signature-256': sig,
+      },
+      payload: body,
+    });
+
+    expect(response.statusCode).toBe(202);
+  });
+
+  it('returns 401 for an invalid signature', async () => {
+    const app = buildApp({ webhookSecret: TEST_SECRET, port: 0, schedulerMode: 'instant', surfConsoleUrl: 'http://localhost:3000', docsContentDir: '/tmp' });
+    const body = JSON.stringify(mergedPrFixture);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/webhook',
+      headers: {
+        'content-type': 'application/json',
+        'x-hub-signature-256': 'sha256=deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef',
+      },
+      payload: body,
+    });
+
+    expect(response.statusCode).toBe(401);
+  });
+
+  it('returns 200 for a valid signature over a non-merge (opened) payload', async () => {
+    const app = buildApp({ webhookSecret: TEST_SECRET, port: 0, schedulerMode: 'instant', surfConsoleUrl: 'http://localhost:3000', docsContentDir: '/tmp' });
+    const body = JSON.stringify(openedPrFixture);
+    const sig = sign(TEST_SECRET, body);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/webhook',
+      headers: {
+        'content-type': 'application/json',
+        'x-hub-signature-256': sig,
+      },
+      payload: body,
+    });
+
+    expect(response.statusCode).toBe(200);
   });
 });
