@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./upwind.css";
 import "./globals.css";
 import AppShell from "../components/shell/AppShell";
+import { NotificationProvider } from "../components/shell/NotificationProvider";
 
 export const metadata: Metadata = {
   title: "Surf-Zone Console",
@@ -16,7 +17,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <AppShell>{children}</AppShell>
+        <NotificationProvider>
+          <AppShell>{children}</AppShell>
+        </NotificationProvider>
       </body>
     </html>
   );

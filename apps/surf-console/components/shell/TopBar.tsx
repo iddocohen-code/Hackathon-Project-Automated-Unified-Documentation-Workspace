@@ -3,13 +3,15 @@
 /**
  * TopBar.tsx — reproduces .dc.html lines 126–166.
  * Global Scope dropdown, search, icon cluster, org pill, MR avatar.
- * hasCriticalUpdate prop controls the notification bell red dot (default false).
+ * Bell red-dot reads from NotificationContext (critical !== null).
+ * Falls back to hasCriticalUpdate prop if rendered outside the provider.
  * The docs icon links to /docs.
  */
 
 import Link from "next/link";
 import Icon from "../ui/Icon";
 import Hoverable from "../ui/Hoverable";
+import { useNotifications } from "./NotificationProvider";
 
 interface TopBarProps {
   hasCriticalUpdate?: boolean;
@@ -20,6 +22,11 @@ export default function TopBar({
   hasCriticalUpdate = false,
   orgName = "Surf-Zone Org",
 }: TopBarProps) {
+  // Prefer the live context value; fall back to the static prop so TopBar
+  // still works correctly if rendered outside <NotificationProvider>.
+  const { critical } = useNotifications();
+  const showBellDot = critical !== null || hasCriticalUpdate;
+
   return (
     <header
       style={{
@@ -231,7 +238,7 @@ export default function TopBar({
         }}
       >
         <Icon name="bell" size={19} strokeWidth={1.9} />
-        {hasCriticalUpdate && (
+        {showBellDot && (
           <span
             style={{
               position: "absolute",

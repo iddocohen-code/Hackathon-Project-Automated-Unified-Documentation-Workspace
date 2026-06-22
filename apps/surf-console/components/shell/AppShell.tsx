@@ -7,6 +7,7 @@
 
 import Sidebar from "./Sidebar";
 import TopBar from "./TopBar";
+import LiveToast from "../docs/LiveToast";
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -46,6 +47,9 @@ export default function AppShell({
           {children}
         </main>
       </div>
+
+      {/* Toast overlay — rendered outside the scroll column so it stays fixed */}
+      <LiveToast />
     </div>
   );
 }
