@@ -34,6 +34,14 @@ const configSchema = z.object({
     (v) => (v === '' ? undefined : v),
     z.coerce.number().int().positive().default(4000),
   ),
+  corsOrigin: z.preprocess(
+    (v) => (v === '' ? undefined : v),
+    z.string().default('http://localhost:3000'),
+  ),
+  retrieverMode: z.preprocess(
+    (v) => (v === '' ? undefined : v),
+    z.enum(['keyword', 'vector']).default('keyword'),
+  ),
 });
 
 export type Config = z.infer<typeof configSchema>;
@@ -46,5 +54,7 @@ export function loadConfig(): Config {
     screenshotsPublicDir: process.env['SCREENSHOTS_PUBLIC_DIR'],
     webhookSecret: process.env['GITHUB_WEBHOOK_SECRET'],
     port: process.env['PORT'],
+    corsOrigin: process.env['CORS_ORIGIN'],
+    retrieverMode: process.env['RETRIEVER_MODE'],
   });
 }

@@ -1,0 +1,29 @@
+{
+  "categories": [
+    { "id": "safety", "label": "Safety", "docCount": 2 }
+  ],
+  "docs": [
+    {
+      "id": "shark-mitigation",
+      "title": "Shark Mitigation Guide",
+      "category": "safety",
+      "bodyMarkdown": "",
+      "version": 3,
+      "updatedAt": "2026-06-23T00:00:00.000Z",
+      "lastChange": "Added automated siren integration",
+      "screenshots": [],
+      "sourceComponent": "SharkMitigationPanel"
+    },
+    {
+      "id": "ocean-safety",
+      "title": "Ocean Safety Basics",
+      "category": "safety",
+      "bodyMarkdown": "",
+      "version": 1,
+      "updatedAt": "2026-06-23T00:00:00.000Z",
+      "lastChange": "Initial doc",
+      "screenshots": [],
+      "sourceComponent": "OceanSafetyPanel"
+    }
+  ]
+}

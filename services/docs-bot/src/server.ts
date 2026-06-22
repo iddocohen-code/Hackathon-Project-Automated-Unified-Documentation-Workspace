@@ -1,4 +1,5 @@
 import Fastify from 'fastify';
+import cors from '@fastify/cors';
 import type { Config } from './config.js';
 import { verifyGithubSignature } from './webhook/verify.js';
 import { toPullRequestEvent } from './webhook/normalize.js';
@@ -6,6 +7,8 @@ import { isRelevant } from './pipeline/filter.js';
 import { makeScheduler } from './pipeline/scheduler.js';
 import type { Scheduler } from './pipeline/scheduler.js';
 import type { PullRequestEvent } from '@surf/types';
+import { answerQuery } from './rag/answer.js';
+import { getRetriever } from './rag/index-state.js';
 
 export interface BuildAppOptions {
   /**
@@ -23,6 +26,13 @@ export interface BuildAppOptions {
 
 export function buildApp(config?: Config, scheduler?: Scheduler, options?: BuildAppOptions) {
   const app = Fastify({ logger: true });
+
+  // ---------------------------------------------------------------------------
+  // CORS — allow requests from the configured frontend origin.
+  // ---------------------------------------------------------------------------
+  void app.register(cors, {
+    origin: config?.corsOrigin ?? 'http://localhost:3000',
+  });
 
   // ---------------------------------------------------------------------------
   // Scheduler setup
@@ -122,6 +132,23 @@ export function buildApp(config?: Config, scheduler?: Scheduler, options?: Build
     }
 
     return reply.code(200).send({ status: 'ignored' });
+  });
+
+  // POST /search — RAG query endpoint.
+  //
+  // Body: { query: string }
+  // Success (200): RagAnswer from answerQuery(query, getRetriever())
+  // Error (400): empty or missing query
+  app.post('/search', async (request, reply) => {
+    const body = request.body as { query?: unknown } | null | undefined;
+    const query = typeof body?.query === 'string' ? body.query.trim() : '';
+
+    if (query === '') {
+      return reply.code(400).send({ error: 'query must be a non-empty string' });
+    }
+
+    const answer = await answerQuery(query, getRetriever());
+    return reply.code(200).send(answer);
   });
 
   return app;

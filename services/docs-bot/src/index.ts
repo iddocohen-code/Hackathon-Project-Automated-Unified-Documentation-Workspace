@@ -11,12 +11,19 @@ import { FixtureJiraSource } from './context/fixtures/jira.js';
 import { FixtureSlackSource } from './context/fixtures/slack.js';
 import { FixtureConfluenceSource } from './context/fixtures/confluence.js';
 import { getChangedPaths } from './git/diff.js';
+import { initIndex, rebuildIndex } from './rag/index-state.js';
 import type { PullRequestEvent } from '@surf/types';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, '../../..');
 
 const config = loadConfig();
+
+// ---------------------------------------------------------------------------
+// RAG index — initialise and build once at boot
+// ---------------------------------------------------------------------------
+initIndex(config);
+await rebuildIndex();
 
 // Build the real context sources (fixture-backed for Plan 2 demo)
 const contextSources = [
@@ -37,6 +44,8 @@ const runJob = makeRunJob({
   contextSources,
   capture: captureBackend,
   // commitFn: undefined → publisher uses the real simpleGit commit
+  // Rebuild the RAG index after each successful publish so /search stays current.
+  onIndexRebuild: () => rebuildIndex(),
 });
 
 // ---------------------------------------------------------------------------

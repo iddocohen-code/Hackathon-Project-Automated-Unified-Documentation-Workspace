@@ -60,6 +60,8 @@ export interface RunJobDeps {
   capture: ScreenshotCapture;
   /** Git commit function (injectable for tests). */
   commitFn?: CommitFn;
+  /** Called after successful publish to trigger RAG index rebuild. */
+  onIndexRebuild?: () => Promise<void>;
 }
 
 // ---------------------------------------------------------------------------
@@ -74,6 +76,7 @@ export function makeRunJob(deps: RunJobDeps) {
     contextSources,
     capture,
     commitFn,
+    onIndexRebuild,
   } = deps;
 
   return async function runJob(event: PullRequestEvent): Promise<void> {
@@ -344,6 +347,7 @@ export function makeRunJob(deps: RunJobDeps) {
         screenshotsPublicDir,
         ...(videoWebm !== undefined ? { videoBuffer: videoWebm } : {}),
         ...(commitFn ? { commitFn } : {}),
+        ...(onIndexRebuild ? { onIndexRebuild } : {}),
       });
     } catch (err) {
       log(`[job=${jobId}] ABORT at publish`, { error: String(err) });
