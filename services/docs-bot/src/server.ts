@@ -27,7 +27,10 @@ export function buildApp(config?: Config, scheduler?: Scheduler, options?: Build
   // ---------------------------------------------------------------------------
   // Scheduler setup
   //
-  // A stub `run` callback is used until Task 11 wires the real pipeline.
+  // In production, `index.ts` injects a real scheduler (with `makeRunJob` as
+  // the run callback) so the stub below is never used. The stub exists only as
+  // a fallback when `buildApp` is called WITHOUT an injected scheduler — e.g.
+  // in unit tests that exercise the HTTP layer without a live pipeline.
   // app.log is passed as the scheduler logger so timer-path flush errors are
   // visible in the Fastify log stream rather than silently swallowed.
   // ---------------------------------------------------------------------------

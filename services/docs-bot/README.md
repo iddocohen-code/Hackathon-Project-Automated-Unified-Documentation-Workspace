@@ -16,7 +16,7 @@
 
 ## Environment variables
 
-Copy `.env.example` (or the existing `.env`) and fill in your values. `.env` is gitignored and must never be committed.
+Copy `services/docs-bot/.env.example` to `services/docs-bot/.env` and fill in the values. `.env` is gitignored and must never be committed.
 
 | Variable | Required | Default | Description |
 |---|---|---|---|
@@ -72,7 +72,7 @@ ngrok http 4000
 5. **Events**: select **Let me select individual events** → check **Pull requests** only.
 6. Save. GitHub immediately sends a `ping` event; the bot responds 200 (ignored, not a merge event).
 
-> **Important — git fetch requirement**: when a webhook fires, the merge commit from GitHub may not yet be present in your local clone. The bot runs a best-effort `git fetch origin` before diffing so the SHA resolves locally. If fetch fails (e.g. no network), the error is logged and the webhook is still acknowledged (202) without enqueue; you can use `/run-now` to retry manually.
+> **Important — git fetch requirement**: when a webhook fires, the merge commit from GitHub may not yet be present in your local clone. The resolver runs a best-effort `git fetch origin` first so the SHA is available for diffing. If the fetch fails, the error is logged and the pipeline continues — if the SHA is already present locally (e.g. recently cloned), `getChangedPaths` succeeds and the event is enqueued normally. Only if `getChangedPaths` itself fails (the SHA is truly missing) is the error caught and the webhook acknowledged `202` without enqueue. You can use `/run-now` to retry manually after the local clone is up to date.
 
 ## Demo flow
 
