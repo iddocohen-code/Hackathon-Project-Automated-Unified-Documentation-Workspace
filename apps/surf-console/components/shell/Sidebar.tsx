@@ -113,19 +113,20 @@ export default function Sidebar() {
         }}
       >
         {/* Home — routed */}
-        <Link href="/" style={{ textDecoration: "none" }}>
-          <button
-            className="uw-navbtn"
-            style={{
-              ...navBtnBase,
-              ...(homeActive ? activeStyle : inactiveStyle),
-            }}
-          >
-            <span style={homeActive ? iconActive : iconInactive}>
-              <Icon name="home" size={18} />
-            </span>
-            <span style={{ flex: 1 }}>Home</span>
-          </button>
+        <Link
+          href="/"
+          role="button"
+          className="uw-navbtn"
+          style={{
+            textDecoration: "none",
+            ...navBtnBase,
+            ...(homeActive ? activeStyle : inactiveStyle),
+          }}
+        >
+          <span style={homeActive ? iconActive : iconInactive}>
+            <Icon name="home" size={18} />
+          </span>
+          <span style={{ flex: 1 }}>Home</span>
         </Link>
 
         {/* Conditions — decorative */}
@@ -245,19 +246,20 @@ export default function Sidebar() {
         }}
       >
         {/* Documentation Portal — routed */}
-        <Link href="/docs" style={{ textDecoration: "none" }}>
-          <button
-            className="uw-navbtn"
-            style={{
-              ...navBtnBase,
-              ...(docsActive ? activeStyle : inactiveStyle),
-            }}
-          >
-            <span style={docsActive ? iconActive : iconInactive}>
-              <Icon name="book-open" size={18} />
-            </span>
-            <span style={{ flex: 1 }}>Documentation Portal</span>
-          </button>
+        <Link
+          href="/docs"
+          role="button"
+          className="uw-navbtn"
+          style={{
+            textDecoration: "none",
+            ...navBtnBase,
+            ...(docsActive ? activeStyle : inactiveStyle),
+          }}
+        >
+          <span style={docsActive ? iconActive : iconInactive}>
+            <Icon name="book-open" size={18} />
+          </span>
+          <span style={{ flex: 1 }}>Documentation Portal</span>
         </Link>
 
         {/* Settings — decorative */}

@@ -29,8 +29,7 @@ type IconName =
   | "plus"         // TopBar add icon
   | "message-circle" // TopBar chat icon
   | "sparkles-gradient" // AI Copilot TopBar (gradient)
-  | "bell"         // Notifications
-  | "chevron-down-small";
+  | "bell";        // Notifications
 
 interface IconProps extends React.SVGProps<SVGSVGElement> {
   name: IconName;
@@ -186,7 +185,6 @@ const PATHS: Record<IconName, React.ReactNode> = {
       <path d="M3.3 15.3A1 1 0 0 0 4 17h16a1 1 0 0 0 .7-1.7C19.4 14 18 12.5 18 8A6 6 0 0 0 6 8c0 4.5-1.4 6-2.7 7.3" />
     </>
   ),
-  "chevron-down-small": <path d="m6 9 6 6 6-6" />,
 };
 
 export default function Icon({ name, size = 18, stroke, ...rest }: IconProps) {

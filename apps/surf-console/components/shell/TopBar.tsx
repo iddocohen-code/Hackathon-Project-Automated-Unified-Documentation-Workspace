@@ -7,53 +7,13 @@
  * The docs icon links to /docs.
  */
 
-import { useState } from "react";
 import Link from "next/link";
 import Icon from "../ui/Icon";
+import Hoverable from "../ui/Hoverable";
 
 interface TopBarProps {
   hasCriticalUpdate?: boolean;
   orgName?: string;
-}
-
-/** Small inline hover wrapper used only for the org pill. */
-function OrgPill({
-  orgName,
-}: {
-  orgName: string;
-}) {
-  const [hovered, setHovered] = useState(false);
-  return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 8,
-        height: 34,
-        padding: "0 8px 0 11px",
-        border: "1px solid var(--border-subtle)",
-        borderRadius: 8,
-        fontSize: 13,
-        color: "var(--text-primary)",
-        cursor: "pointer",
-        marginLeft: 4,
-        background: hovered ? "var(--interactive-hover)" : "transparent",
-      }}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-    >
-      <span style={{ display: "inline-flex", color: "var(--severity-safe)" }}>
-        {/* circle from mock line 161: just a circle */}
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <circle cx="12" cy="12" r="9" />
-        </svg>
-      </span>
-      {orgName}
-      <span style={{ display: "inline-flex", color: "var(--text-tertiary)" }}>
-        <Icon name="chevron-down" size={14} strokeWidth={2} />
-      </span>
-    </div>
-  );
 }
 
 export default function TopBar({
@@ -191,25 +151,25 @@ export default function TopBar({
       </button>
 
       {/* Docs link icon → /docs */}
-      <Link href="/docs" style={{ textDecoration: "none" }}>
-        <button
-          className="uw-iconbtn"
-          title="Documentation"
-          style={{
-            width: 34,
-            height: 34,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            border: "none",
-            background: "transparent",
-            borderRadius: 8,
-            color: "var(--text-secondary)",
-            cursor: "pointer",
-          }}
-        >
-          <Icon name="book-open" size={19} strokeWidth={1.9} />
-        </button>
+      <Link
+        href="/docs"
+        role="button"
+        className="uw-iconbtn"
+        title="Documentation"
+        style={{
+          width: 34,
+          height: 34,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "transparent",
+          borderRadius: 8,
+          color: "var(--text-secondary)",
+          cursor: "pointer",
+          textDecoration: "none",
+        }}
+      >
+        <Icon name="book-open" size={19} strokeWidth={1.9} />
       </Link>
 
       {/* Message / chat */}
@@ -288,7 +248,35 @@ export default function TopBar({
       </button>
 
       {/* Org pill */}
-      <OrgPill orgName={orgName} />
+      <Hoverable
+        as="div"
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          height: 34,
+          padding: "0 8px 0 11px",
+          border: "1px solid var(--border-subtle)",
+          borderRadius: 8,
+          fontSize: 13,
+          color: "var(--text-primary)",
+          cursor: "pointer",
+          marginLeft: 4,
+          background: "transparent",
+        }}
+        hoverStyle={{ background: "var(--interactive-hover)" }}
+      >
+        <span style={{ display: "inline-flex", color: "var(--severity-safe)" }}>
+          {/* circle from mock line 161: just a circle */}
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="12" cy="12" r="9" />
+          </svg>
+        </span>
+        {orgName}
+        <span style={{ display: "inline-flex", color: "var(--text-tertiary)" }}>
+          <Icon name="chevron-down" size={14} strokeWidth={2} />
+        </span>
+      </Hoverable>
 
       {/* MR Avatar */}
       <div
