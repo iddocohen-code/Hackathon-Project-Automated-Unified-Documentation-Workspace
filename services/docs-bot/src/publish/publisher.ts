@@ -25,7 +25,7 @@
 import { readFile, writeFile, mkdir, rename } from 'node:fs/promises';
 import path from 'node:path';
 import { simpleGit } from 'simple-git';
-import type { Doc, ChangeEntry, DocsManifest, Changelog, Screenshot } from '@surf/types';
+import type { Doc, ChangeEntry, DocsManifest, Changelog, Screenshot, DocVideo } from '@surf/types';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -57,6 +57,14 @@ export interface PublishInput {
    * Every PNG is written to its web path's on-disk location.
    */
   screenshots: PublishScreenshot[];
+  /**
+   * OPTIONAL raw bytes of the looping interaction clip. STRETCH + NON-BLOCKING:
+   * present only when `doc.video` is set. When provided, the `.webm` is written
+   * to `<public>/docs-videos/<docId>/<basename(doc.video.path)>` and committed,
+   * and the manifest entry keeps its `video` field. Absent → nothing extra is
+   * written and `video` is omitted from the manifest entry.
+   */
+  videoBuffer?: Buffer;
   /** The new ChangeEntry to prepend to changelog. */
   changeEntry: ChangeEntry;
   /** Filesystem path to content/docs root. */
@@ -130,6 +138,7 @@ export async function publish(input: PublishInput): Promise<void> {
   const {
     doc,
     screenshots,
+    videoBuffer,
     changeEntry,
     docsContentDir,
     screenshotsPublicDir,
@@ -164,6 +173,32 @@ export async function publish(input: PublishInput): Promise<void> {
   }
 
   // -------------------------------------------------------------------------
+  // Step 2b: OPTIONAL looping interaction clip (.webm). STRETCH + NON-BLOCKING.
+  //
+  // Written ONLY when BOTH `doc.video` and `videoBuffer` are provided. The clip
+  // goes to <public>/docs-videos/<docId>/<basename(doc.video.path)> — a sibling
+  // of the docs-screenshots dir — and is added to the commit. When absent,
+  // nothing extra is written and the manifest entry omits `video` (below).
+  // -------------------------------------------------------------------------
+  const videosPublicDir = path.join(path.dirname(screenshotsPublicDir), 'docs-videos');
+  let writtenVideoFsPath: string | undefined;
+  let manifestVideo: DocVideo | undefined;
+  if (doc.video && videoBuffer) {
+    const videoFilename = path.basename(doc.video.path);
+    const videoWebPath = `/docs-videos/${doc.id}/${videoFilename}`;
+    const videoDocDir = path.join(videosPublicDir, doc.id);
+    await mkdir(videoDocDir, { recursive: true });
+    const videoFsPath = path.join(videoDocDir, videoFilename);
+    await atomicWriteFile(videoFsPath, videoBuffer);
+    writtenVideoFsPath = videoFsPath;
+    manifestVideo = {
+      path: videoWebPath,
+      alt: doc.video.alt,
+      capturedAt: doc.video.capturedAt,
+    };
+  }
+
+  // -------------------------------------------------------------------------
   // Step 3: Update manifest.json — surgical replacement of one doc entry
   //
   // HARD contract:
@@ -193,13 +228,18 @@ export async function publish(input: PublishInput): Promise<void> {
       return existing; // untouched
     }
 
+    // Strip any stale `video` from the prior entry; re-add ONLY when a clip
+    // was written this publish (manifestVideo is set).
+    const { video: _staleVideo, ...existingSansVideo } = existing;
+
     // Replace with new metadata; MUST keep bodyMarkdown: ""
     return {
-      ...existing,            // preserve any fields not explicitly overwritten
+      ...existingSansVideo,   // preserve any fields not explicitly overwritten
       title: doc.title,
       category: doc.category,
       bodyMarkdown: '',       // HARD contract: body lives in index.md
       screenshots: manifestScreenshots,
+      ...(manifestVideo ? { video: manifestVideo } : {}),
       sourceComponent: doc.sourceComponent,
       version: doc.version,
       updatedAt: doc.updatedAt,
@@ -250,7 +290,13 @@ export async function publish(input: PublishInput): Promise<void> {
   // Pass filesystem paths; the commitFn is responsible for resolving them
   // relative to the repo root if needed.
   await commitFn(
-    [indexMdPath, manifestPath, changelogPath, ...writtenPngFsPaths],
+    [
+      indexMdPath,
+      manifestPath,
+      changelogPath,
+      ...writtenPngFsPaths,
+      ...(writtenVideoFsPath ? [writtenVideoFsPath] : []),
+    ],
     commitMessage,
   );
 

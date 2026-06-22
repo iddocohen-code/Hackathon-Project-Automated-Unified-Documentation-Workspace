@@ -34,6 +34,13 @@ export interface ContextRef {
   excerpt: string;
 }
 
+/** An embedded looping interaction clip (GIF-like silent `.webm`). */
+export interface DocVideo {
+  path: string;
+  alt: string;
+  capturedAt: string;
+}
+
 /** A single documentation page with its content and metadata. */
 export interface Doc {
   id: string;
@@ -41,6 +48,8 @@ export interface Doc {
   category: DocCategory;
   bodyMarkdown: string;
   screenshots: Screenshot[];
+  /** Optional looping interaction clip; omitted when no clip was recorded. */
+  video?: DocVideo;
   sourceComponent: string;
   version: number;
   updatedAt: string;

@@ -399,6 +399,77 @@ export default function DocView({ doc }: DocViewProps) {
             </ReactMarkdown>
           </div>
 
+          {/* Looping interaction clip (GIF-like, silent) — only when doc.video is set.
+              Never a gate: when absent, nothing extra renders (stills only). */}
+          {doc.video && (
+            <div style={{ marginTop: 24 }}>
+              <div
+                style={{
+                  border: "1px solid var(--border-subtle)",
+                  borderRadius: 10,
+                  overflow: "hidden",
+                }}
+              >
+                {/* Browser chrome bar */}
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 7,
+                    padding: "8px 12px",
+                    background: "var(--bg-secondary)",
+                    borderBottom: "1px solid var(--border-subtle)",
+                  }}
+                >
+                  <span style={{ width: 9, height: 9, borderRadius: "50%", background: "#FF5F57" }} />
+                  <span style={{ width: 9, height: 9, borderRadius: "50%", background: "#FEBC2E" }} />
+                  <span style={{ width: 9, height: 9, borderRadius: "50%", background: "#28C840" }} />
+                  <span
+                    style={{
+                      fontSize: 11,
+                      color: "var(--text-tertiary)",
+                      marginLeft: 8,
+                      fontFamily: "var(--font-mono-family)",
+                    }}
+                  >
+                    {doc.video.path} · interaction clip
+                  </span>
+                </div>
+                <div style={{ padding: 18, background: "#fbfcfe" }}>
+                  {/* doc.video.path is a web-resolvable public path set by the publisher.
+                      Looping + muted + autoPlay makes it behave like a silent GIF. */}
+                  <video
+                    src={doc.video.path}
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                    controls
+                    aria-label={doc.video.alt}
+                    style={{
+                      display: "block",
+                      maxWidth: "100%",
+                      borderRadius: 8,
+                      border: "1px solid var(--border-subtle)",
+                    }}
+                  />
+                </div>
+              </div>
+              {doc.video.alt && (
+                <div
+                  style={{
+                    fontSize: 12.5,
+                    color: "var(--text-tertiary)",
+                    marginTop: 8,
+                    fontStyle: "italic",
+                  }}
+                >
+                  {doc.video.alt}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Screenshot gallery — renders ALL captured states, each with its own caption */}
           {doc.screenshots.length > 0 && (
             <div style={{ display: "flex", flexDirection: "column", gap: 20, marginTop: 24 }}>

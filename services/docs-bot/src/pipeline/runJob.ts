@@ -132,12 +132,17 @@ export function makeRunJob(deps: RunJobDeps) {
     const captureRoute = diffAnalysis.targetRoute ?? '/';
     const captureSelector = `[data-doc-target="${diffAnalysis.docId}"]`;
     let capturedStates: CapturedState[];
+    // Optional looping interaction clip (GIF-like .webm). STRETCH + NON-BLOCKING:
+    // never vision-checked, never affects halt logic; undefined if not recorded.
+    let videoWebm: Buffer | undefined;
     try {
-      capturedStates = await capture.captureStates({
+      const captured = await capture.captureStates({
         route: captureRoute,
         selector: captureSelector,
         interactions: diffAnalysis.interactions,
       });
+      capturedStates = captured.states;
+      videoWebm = captured.videoWebm;
     } catch (err) {
       log(`[job=${jobId}] ABORT at capture`, { error: String(err) });
       return;
@@ -274,6 +279,16 @@ export function makeRunJob(deps: RunJobDeps) {
       return { screenshot, pngBuffer: s.pngBuffer };
     });
 
+    // Optional looping interaction clip. STRETCH + NON-BLOCKING: only attach
+    // when a clip was actually recorded; it is never vision-checked.
+    const videoPath = `/docs-videos/${diffAnalysis.docId}/interaction-v${newVersion}.webm`;
+    const videoAlt =
+      diffAnalysis.interactions.length > 0
+        ? `Looping clip: ${diffAnalysis.interactions
+            .map((i) => i.label)
+            .join(', ')} and the resulting revealed state`
+        : `Looping interaction clip for ${docDraft.title}`;
+
     const assembledDoc: Doc = {
       ...currentDoc,
       title: docDraft.title,
@@ -282,6 +297,9 @@ export function makeRunJob(deps: RunJobDeps) {
       updatedAt: now,
       lastChange: docDraft.changeSummary,
       screenshots: publishScreenshots.map((ps) => ps.screenshot),
+      ...(videoWebm !== undefined
+        ? { video: { path: videoPath, alt: videoAlt, capturedAt: now } }
+        : {}),
     };
 
     // screenshotDiff.after = the most informative new state: the last activated
@@ -315,6 +333,7 @@ export function makeRunJob(deps: RunJobDeps) {
       docId: diffAnalysis.docId,
       version: newVersion,
       screenshots: publishScreenshots.length,
+      video: videoWebm !== undefined,
     });
     try {
       await publish({
@@ -323,6 +342,7 @@ export function makeRunJob(deps: RunJobDeps) {
         changeEntry,
         docsContentDir,
         screenshotsPublicDir,
+        ...(videoWebm !== undefined ? { videoBuffer: videoWebm } : {}),
         ...(commitFn ? { commitFn } : {}),
       });
     } catch (err) {

@@ -87,6 +87,19 @@ const FAKE_PNG = Buffer.from(
   'base64',
 );
 
+/** A fake .webm clip buffer (content is opaque to the publisher — it just writes bytes). */
+const FAKE_WEBM = Buffer.from('fake-webm-bytes-for-test-purposes');
+
+/** V4 shark Doc with an attached looping interaction clip. */
+const V4_SHARK_DOC_WITH_VIDEO: Doc = {
+  ...V4_SHARK_DOC,
+  video: {
+    path: '/docs-videos/shark-mitigation/interaction-v4.webm',
+    alt: 'Pressing the Emergency Shark Siren and the resulting evacuation state',
+    capturedAt: '2025-06-22T10:00:00Z',
+  },
+};
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -336,5 +349,85 @@ describe('publisher.publish()', () => {
       expect(screenshot.path).not.toMatch(/^\/Users\//);
       expect(screenshot.path).not.toMatch(/^\/tmp\//);
     }
+  });
+
+  // -------------------------------------------------------------------------
+  // Optional looping interaction clip (.webm) — STRETCH + NON-BLOCKING
+  // -------------------------------------------------------------------------
+
+  it('video present: writes the .webm under docs-videos/<docId>/ and sets manifest.video', async () => {
+    await publish({
+      doc: V4_SHARK_DOC_WITH_VIDEO,
+      screenshots: [{ screenshot: V4_SHARK_DOC.screenshots[0], pngBuffer: FAKE_PNG }],
+      videoBuffer: FAKE_WEBM,
+      changeEntry: NEW_CHANGE_ENTRY,
+      docsContentDir,
+      screenshotsPublicDir,
+      commitFn: noopCommit,
+    });
+
+    // The webm is written to the docs-videos sibling of screenshotsPublicDir.
+    const videosPublicDir = path.join(path.dirname(screenshotsPublicDir), 'docs-videos');
+    const videoFsPath = path.join(videosPublicDir, 'shark-mitigation', 'interaction-v4.webm');
+    const videoStat = await stat(videoFsPath);
+    expect(videoStat.isFile()).toBe(true);
+    const written = await readFile(videoFsPath);
+    expect(written.equals(FAKE_WEBM)).toBe(true);
+
+    // The manifest entry carries a web-path video field.
+    const manifestRaw = await readFile(path.join(docsContentDir, 'manifest.json'), 'utf-8');
+    const manifest = JSON.parse(manifestRaw) as DocsManifest;
+    const sharkDoc = manifest.docs.find((d) => d.id === 'shark-mitigation')!;
+    expect(sharkDoc.video).toBeDefined();
+    expect(sharkDoc.video!.path).toBe('/docs-videos/shark-mitigation/interaction-v4.webm');
+    expect(sharkDoc.video!.alt).toBe(
+      'Pressing the Emergency Shark Siren and the resulting evacuation state',
+    );
+
+    // HARD contract still intact: bodyMarkdown "" and categories preserved.
+    expect(sharkDoc.bodyMarkdown).toBe('');
+    expect(manifest.categories).toHaveLength(4);
+  });
+
+  it('video absent: writes no docs-videos and omits manifest.video', async () => {
+    await publish({
+      doc: V4_SHARK_DOC, // no .video, and no videoBuffer passed
+      screenshots: [{ screenshot: V4_SHARK_DOC.screenshots[0], pngBuffer: FAKE_PNG }],
+      changeEntry: NEW_CHANGE_ENTRY,
+      docsContentDir,
+      screenshotsPublicDir,
+      commitFn: noopCommit,
+    });
+
+    // No docs-videos directory should have been created.
+    const videosPublicDir = path.join(path.dirname(screenshotsPublicDir), 'docs-videos');
+    await expect(stat(videosPublicDir)).rejects.toThrow();
+
+    // The manifest entry must NOT carry a video field.
+    const manifestRaw = await readFile(path.join(docsContentDir, 'manifest.json'), 'utf-8');
+    const manifest = JSON.parse(manifestRaw) as DocsManifest;
+    const sharkDoc = manifest.docs.find((d) => d.id === 'shark-mitigation')!;
+    expect(sharkDoc.video).toBeUndefined();
+  });
+
+  it('includes the .webm path in the commit when video is present', async () => {
+    const committedPaths: string[][] = [];
+    const spyCommit = async (paths: string[], _message: string): Promise<void> => {
+      committedPaths.push(paths);
+    };
+
+    await publish({
+      doc: V4_SHARK_DOC_WITH_VIDEO,
+      screenshots: [{ screenshot: V4_SHARK_DOC.screenshots[0], pngBuffer: FAKE_PNG }],
+      videoBuffer: FAKE_WEBM,
+      changeEntry: NEW_CHANGE_ENTRY,
+      docsContentDir,
+      screenshotsPublicDir,
+      commitFn: spyCommit,
+    });
+
+    expect(committedPaths).toHaveLength(1);
+    const paths = committedPaths[0];
+    expect(paths.some((p) => p.endsWith('interaction-v4.webm'))).toBe(true);
   });
 });

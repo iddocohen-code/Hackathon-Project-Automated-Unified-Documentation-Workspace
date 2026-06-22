@@ -94,7 +94,7 @@ describe.skipIf(!hasKey)('runJob interactive e2e (live, requires API key + porta
 
       // --- Stage 4: multi-state capture ---
       const capture = new PlaywrightCapture(PORTAL_URL);
-      const capturedStates = await capture.captureStates({
+      const { states: capturedStates } = await capture.captureStates({
         route: SIREN_DIFF_ANALYSIS.targetRoute,
         selector: captureSelector,
         interactions: SIREN_DIFF_ANALYSIS.interactions,
