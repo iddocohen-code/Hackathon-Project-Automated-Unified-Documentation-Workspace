@@ -13,9 +13,11 @@ export async function getManifest(): Promise<DocsManifest> {
 
 export async function getChangelog(): Promise<Changelog> {
   const raw = await readFile(path.join(CONTENT_ROOT, 'changelog.json'), 'utf-8');
-  return JSON.parse(raw) as Changelog;
+  return (JSON.parse(raw) as Changelog).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
+// Note: manifest Doc objects carry bodyMarkdown: "" as a placeholder; getDoc injects the real
+// body from <slug>/index.md. Consumers must call getDoc, not read bodyMarkdown from the manifest.
 export async function getDoc(slug: string): Promise<Doc | null> {
   const manifest = await getManifest();
   const entry = manifest.docs.find((d) => d.id === slug);

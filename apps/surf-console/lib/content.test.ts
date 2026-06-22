@@ -17,12 +17,13 @@ describe('content layer', () => {
     expect(doc!.bodyMarkdown).not.toContain('Emergency Shark Siren');
   });
 
-  it('getChangelog() returns length 2 with every entry severity === info', async () => {
+  it('getChangelog() returns length 2 with every entry severity === info, sorted newest-first', async () => {
     const changelog = await getChangelog();
     expect(changelog).toHaveLength(2);
     for (const entry of changelog) {
       expect(entry.severity).toBe('info');
     }
+    expect(changelog[0].createdAt.localeCompare(changelog[1].createdAt)).toBeGreaterThanOrEqual(0);
   });
 
   it("getDoc('does-not-exist') resolves to null", async () => {
