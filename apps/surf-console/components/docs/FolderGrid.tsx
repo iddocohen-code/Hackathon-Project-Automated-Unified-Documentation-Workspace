@@ -5,23 +5,38 @@
  * Source: design-mock lines 369–429.
  *
  * Props:
- *   categories — array of { id, name } objects from the manifest
- *   counts     — map of categoryId → doc count
+ *   categories         — array of { id, name } objects from the manifest
+ *   counts             — map of categoryId → doc count
+ *   incidentProtocolDocs — Doc[] for the incident-protocols category (loaded
+ *                          server-side in app/docs/page.tsx; passed here to
+ *                          keep the server/client boundary clean)
  *
  * "What's New" button lives in the row above the grid, linking to /docs/whats-new.
  */
 
-import React from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import FolderTile from "./FolderTile";
-import type { DocCategory } from "@surf/types";
+import FolderModal from "./FolderModal";
+import type { DocCategory, Doc } from "@surf/types";
 
 interface FolderGridProps {
   categories: DocCategory[];
   counts: Record<string, number>;
+  incidentProtocolDocs: Doc[];
 }
 
-export default function FolderGrid({ categories, counts }: FolderGridProps) {
+export default function FolderGrid({
+  categories,
+  counts,
+  incidentProtocolDocs,
+}: FolderGridProps) {
+  const [modalOpen, setModalOpen] = useState(false);
+
+  const incidentCategory = categories.find(
+    (c) => c.id === "incident-protocols"
+  );
+
   return (
     <div>
       {/* "App directory" row + What's New button */}
@@ -46,7 +61,7 @@ export default function FolderGrid({ categories, counts }: FolderGridProps) {
           App directory
         </div>
 
-        {/* What's New button — links to /docs/whats-new (route built in Task 8) */}
+        {/* What's New button — links to /docs/whats-new */}
         <Link
           href="/docs/whats-new"
           style={{
@@ -134,10 +149,23 @@ export default function FolderGrid({ categories, counts }: FolderGridProps) {
             name={cat.name}
             count={counts[cat.id] ?? 0}
             isUpdated={cat.id === "incident-protocols"}
-            onOpen={cat.id === "incident-protocols" ? () => {} : undefined}
+            onOpen={
+              cat.id === "incident-protocols"
+                ? () => setModalOpen(true)
+                : undefined
+            }
           />
         ))}
       </div>
+
+      {/* FolderModal — mounts only when open */}
+      {modalOpen && incidentCategory && (
+        <FolderModal
+          category={incidentCategory}
+          docs={incidentProtocolDocs}
+          onClose={() => setModalOpen(false)}
+        />
+      )}
     </div>
   );
 }

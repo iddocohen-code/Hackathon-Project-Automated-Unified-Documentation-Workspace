@@ -1,17 +1,19 @@
 /**
  * /docs — App Grid landing (server component).
  * Loads categories + doc counts from the manifest; renders DocsHeader, SearchBar, FolderGrid.
+ * Also pre-loads incident-protocols docs for the FolderModal (passed as a prop to FolderGrid).
  */
 
-import { getCategories, getManifest } from "@/lib/content";
+import { getCategories, getManifest, getDocsByCategory } from "@/lib/content";
 import DocsHeader from "@/components/docs/DocsHeader";
 import SearchBar from "@/components/docs/SearchBar";
 import FolderGrid from "@/components/docs/FolderGrid";
 
 export default async function DocsPage() {
-  const [categories, manifest] = await Promise.all([
+  const [categories, manifest, incidentProtocolDocs] = await Promise.all([
     getCategories(),
     getManifest(),
+    getDocsByCategory("incident-protocols"),
   ]);
 
   // Build counts map from the manifest docs array (authoritative per-category count).
@@ -33,7 +35,11 @@ export default async function DocsPage() {
     <div style={{ padding: "28px 28px 60px", maxWidth: 1380 }}>
       <DocsHeader />
       <SearchBar />
-      <FolderGrid categories={categories} counts={counts} />
+      <FolderGrid
+        categories={categories}
+        counts={counts}
+        incidentProtocolDocs={incidentProtocolDocs}
+      />
     </div>
   );
 }

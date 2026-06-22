@@ -115,3 +115,8 @@ html, body {
 .uw-avatar-btn:hover {
   background: var(--interactive-hover);
 }
+
+/* modal doc tile */
+.uw-doc-tile:hover {
+  transform: translateY(-4px);
+}
