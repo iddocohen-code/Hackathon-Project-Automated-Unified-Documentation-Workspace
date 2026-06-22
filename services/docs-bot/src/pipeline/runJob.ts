@@ -63,6 +63,8 @@ export interface RunJobDeps {
   commitFn?: CommitFn;
   /** Called after successful publish to trigger RAG index rebuild. */
   onIndexRebuild?: () => Promise<void>;
+  /** When true, skip all AI/Playwright stages and publish canned fixtures (demo safety net). */
+  replayMode?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -78,9 +80,103 @@ export function makeRunJob(deps: RunJobDeps) {
     capture,
     commitFn,
     onIndexRebuild,
+    replayMode,
   } = deps;
 
   return async function runJob(event: PullRequestEvent): Promise<void> {
+    // -----------------------------------------------------------------------
+    // REPLAY branch: skip all AI/Playwright stages; publish canned fixtures
+    // -----------------------------------------------------------------------
+    if (replayMode) {
+      const fixturesDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../fixtures/replay');
+      const jobId = randomUUID().slice(0, 8);
+      log(`PR detected → relevant  [job=${jobId}] (replay)`, { prUrl: event.prUrl });
+
+      // Load canned assets
+      log(`getDiff (replay)  [job=${jobId}]`);
+      log(`aggregateContext (replay)  [job=${jobId}]`);
+      log(`analyzeDiff (replay)  [job=${jobId}]`);
+
+      const bodyMarkdown = await readFile(path.join(fixturesDir, 'shark-mitigation.v4.md'), 'utf-8');
+      const defaultPng = await readFile(path.join(fixturesDir, 'shark-default.png'));
+      const activePng = await readFile(path.join(fixturesDir, 'shark-active.png'));
+      let webmBuffer: Buffer | undefined;
+      try { webmBuffer = await readFile(path.join(fixturesDir, 'shark-interaction.webm')); } catch { /* optional */ }
+      const cannedEntry = JSON.parse(await readFile(path.join(fixturesDir, 'change-entry.json'), 'utf-8')) as ChangeEntry;
+
+      log(`capture (replay)  [job=${jobId}]`);
+      log(`visionCheck (replay)  [job=${jobId}]`);
+      log(`writeDoc (replay)  [job=${jobId}]`);
+
+      // Read current manifest to get existing doc
+      const manifestRaw = await readFile(path.join(docsContentDir, 'manifest.json'), 'utf-8');
+      const manifest = JSON.parse(manifestRaw) as DocsManifest;
+      const found = manifest.docs.find((d) => d.id === 'shark-mitigation');
+      if (!found) { log(`[job=${jobId}] ABORT (replay): shark-mitigation not in manifest`); return; }
+
+      const now = new Date().toISOString();
+      const newVersion = found.version + 1;
+      const docId = 'shark-mitigation';
+      const captureSelector = `[data-doc-target="${docId}"]`;
+      const videoPath = `/docs-videos/${docId}/interaction-v${newVersion}.webm`;
+
+      const defaultScreenshot: Screenshot = {
+        path: `/docs-screenshots/${docId}/screenshot-v${newVersion}-default.png`,
+        alt: 'Shark Mitigation Panel — default state showing Emergency Shark Siren button',
+        capturedAt: now,
+        targetSelector: captureSelector,
+      };
+      const activeScreenshot: Screenshot = {
+        path: `/docs-screenshots/${docId}/screenshot-v${newVersion}-emergency-shark-siren-active.png`,
+        alt: 'Shark Mitigation Panel — siren active, showing evacuation banner',
+        capturedAt: now,
+        targetSelector: captureSelector,
+      };
+
+      const assembledDoc: Doc = {
+        ...found,
+        title: 'Shark Mitigation Protocol',
+        bodyMarkdown,
+        version: newVersion,
+        updatedAt: now,
+        lastChange: cannedEntry.summary,
+        screenshots: [defaultScreenshot, activeScreenshot],
+        ...(webmBuffer !== undefined ? { video: { path: videoPath, alt: 'Looping interaction clip: Emergency Shark Siren activation', capturedAt: now } } : {}),
+      };
+
+      const changeEntry: ChangeEntry = {
+        ...cannedEntry,
+        id: `chg-replay-${randomUUID().slice(0, 8)}`,
+        createdAt: now,
+        screenshotDiff: { after: activeScreenshot.path },
+      };
+
+      log(`Publishing (replay)  [job=${jobId}]`, { docId, version: newVersion });
+
+      try {
+        await publish({
+          doc: assembledDoc,
+          screenshots: [
+            { screenshot: defaultScreenshot, pngBuffer: defaultPng },
+            { screenshot: activeScreenshot, pngBuffer: activePng },
+          ],
+          changeEntry,
+          docsContentDir,
+          screenshotsPublicDir,
+          ...(webmBuffer !== undefined ? { videoBuffer: webmBuffer } : {}),
+          ...(commitFn ? { commitFn } : {}),
+          notify: async () => { notifier.emit(changeEntry); },
+          ...(onIndexRebuild ? { onIndexRebuild } : {}),
+        });
+      } catch (err) {
+        log(`[job=${jobId}] ABORT at publish (replay)`, { error: String(err) });
+        return;
+      }
+
+      log(`Done (replay)  [job=${jobId}]`, { docId, version: newVersion, severity: 'critical' });
+      return;
+    }
+
     const jobId = randomUUID().slice(0, 8);
     log(`PR detected → relevant  [job=${jobId}]`, { prUrl: event.prUrl });
 

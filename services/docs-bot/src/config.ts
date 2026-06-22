@@ -42,6 +42,10 @@ const configSchema = z.object({
     (v) => (v === '' ? undefined : v),
     z.enum(['keyword', 'vector']).default('keyword'),
   ),
+  replayMode: z.preprocess(
+    (v) => (v === '' ? undefined : v),
+    z.coerce.boolean().default(false),
+  ),
 });
 
 export type Config = z.infer<typeof configSchema>;
@@ -56,5 +60,6 @@ export function loadConfig(): Config {
     port: process.env['PORT'],
     corsOrigin: process.env['CORS_ORIGIN'],
     retrieverMode: process.env['RETRIEVER_MODE'],
+    replayMode: process.env['REPLAY_MODE'],
   });
 }
