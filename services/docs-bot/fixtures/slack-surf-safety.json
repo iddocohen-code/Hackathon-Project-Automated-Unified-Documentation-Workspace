@@ -1,0 +1,37 @@
+{
+  "channel": "surf-safety",
+  "threadTs": "1731074400.123456",
+  "permalink": "https://slack.example.com/archives/C0SURFSAFE/p1731074400123456",
+  "messages": [
+    {
+      "user": "jake.torres",
+      "ts": "1731074400.123456",
+      "text": "Hey team — quick input needed for SURF-142. The siren activation in the mitigation panel is currently buried three levels deep. In a real shark sighting, that's way too slow. Proposing we surface it as a one-tap button on the main panel. Thoughts?",
+      "reactions": ["eyes", "100"]
+    },
+    {
+      "user": "maya.chen",
+      "ts": "1731074650.234567",
+      "text": "Fully agree. Spoke with Captain Reeves this morning — they've actually had two near-misses where the delay in finding the siren cost critical seconds. One tap is non-negotiable from a safety standpoint.",
+      "reactions": ["+1", "+1", "+1"]
+    },
+    {
+      "user": "priya.sharma",
+      "ts": "1731074900.345678",
+      "text": "Design-wise: we should make the button visually distinct (red, full-width) so it can't be missed even under stress. No confirmation modal — we don't want cognitive load in a panic situation.",
+      "reactions": ["fire", "+1"]
+    },
+    {
+      "user": "diego.ramirez",
+      "ts": "1731075100.456789",
+      "text": "Agreed on all fronts. I'll add a note to the runbook that the one-press siren path is the canonical evacuation trigger going forward. Old multi-step path stays as a fallback only.",
+      "reactions": ["+1"]
+    },
+    {
+      "user": "jake.torres",
+      "ts": "1731075200.567890",
+      "text": "Perfect. Summary: siren must be one tap, top of panel, no confirmation dialog, haptic feedback on mobile. This is the team consensus. Tagging SURF-142.",
+      "reactions": ["white_check_mark", "+1", "+1"]
+    }
+  ]
+}

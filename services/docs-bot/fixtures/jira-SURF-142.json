@@ -1,0 +1,24 @@
+{
+  "key": "SURF-142",
+  "summary": "Add one-press Emergency Shark Siren to mitigation panel",
+  "status": "In Progress",
+  "priority": "Critical",
+  "assignee": "Maya Chen",
+  "reporter": "Jake Torres",
+  "created": "2024-11-08T09:14:00Z",
+  "updated": "2024-11-12T16:45:00Z",
+  "description": "Lifeguards need to trigger a zone-wide beach evacuation instantly when a shark is detected in the water. The current mitigation panel requires navigating three sub-menus before the siren can be activated — an unacceptable delay when every second counts. This ticket tracks adding a single, prominent Emergency Shark Siren button directly to the top-level mitigation panel UI. Tapping it must dispatch the siren to all buoy speakers and send evacuation alerts to all registered devices within the zone in under 500ms. Acceptance criteria: (1) siren button visible on first render without scrolling; (2) single tap triggers full evacuation flow; (3) confirmation toast appears within 200ms; (4) action is logged with GPS timestamp for incident review.",
+  "labels": ["safety-critical", "ux", "siren"],
+  "comments": [
+    {
+      "author": "Jake Torres",
+      "body": "Spoke with the lifeguard team — they want a big red button, unmissable. No confirmation dialog for the siren itself, as hesitation costs lives.",
+      "created": "2024-11-09T11:02:00Z"
+    },
+    {
+      "author": "Maya Chen",
+      "body": "Agreed. I'll put it at the top of the panel with a 56dp tap target. We'll add a brief haptic pulse on Android so even in panic the user gets feedback.",
+      "created": "2024-11-10T14:30:00Z"
+    }
+  ]
+}
