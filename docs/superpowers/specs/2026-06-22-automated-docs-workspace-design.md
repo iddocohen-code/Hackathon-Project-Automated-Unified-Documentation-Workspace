@@ -417,9 +417,23 @@ focused on the human experience and the live pipeline.
   same `ContextSource` interface.
 - **Production scheduler** (real UI-stabilization + deploy-health waiting) replacing the demo's
   instant scheduler, behind the same `Scheduler` interface.
+- **Production-grade RAG retrieval** replacing the demo's keyword retriever, behind the same
+  `Retriever` interface (Plan 3). **Decision (recorded for scale-up):** for the hackathon corpus
+  (~5–10 short docs) we ship `KeywordRetriever` as the default — deterministic, no extra API key,
+  instant, offline-capable, and entirely sufficient at this size; the hard/valuable part (grounded
+  synthesis with verifiable citations) is already production-identical. The drop-in upgrade is
+  `VectorRetriever` (Voyage embeddings + in-memory cosine, already specced as Plan 3 Task 8, optional).
+  **When scaling to a large/real corpus**, the production shape is: (1) **semantic vector retrieval,
+  ideally hybrid** (keyword BM25 fused with vector) **+ a reranker** (e.g. Voyage/Cohere rerank);
+  (2) a **persistent vector store** (`pgvector` / Pinecone / Weaviate / Turbopuffer) instead of
+  in-memory; (3) **token-windowed chunking with overlap** instead of heading-level sections;
+  (4) optional **query rewriting / multi-query / HyDE**; (5) a **retrieval + faithfulness eval
+  harness** (recall@k, answer groundedness) gating changes. All of this swaps in behind the existing
+  `Retriever` interface — the `/search` endpoint and the grounded-generation step do not change.
 
 ## 14. Open questions
-- Vector store choice for RAG (in-memory vs sqlite-vec vs pgvector) — finalize in the execution plan
-  based on corpus size; the baseline corpus is small, so in-memory / sqlite is likely sufficient.
+- ~~Vector store choice for RAG (in-memory vs sqlite-vec vs pgvector)~~ — **RESOLVED in Plan 3:**
+  ship an in-memory `KeywordRetriever` for the demo behind a `Retriever` interface; the
+  vector/store/reranker scale-up path is recorded in §13.2.
 - Hosting: Vercel for the Next.js app; the bot runs locally with a tunnel for the demo (simplest),
   or Railway / Render / Fly for a hosted bot.
