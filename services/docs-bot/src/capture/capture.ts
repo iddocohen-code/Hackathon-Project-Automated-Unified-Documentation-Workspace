@@ -127,7 +127,7 @@ export class PlaywrightCapture implements ScreenshotCapture {
           const bytes = await locator.screenshot({ type: 'png' });
           return Buffer.from(bytes);
         } else {
-          await page.waitForLoadState('load');
+          // 'load' already awaited once after navigation (line ~118); no need to repeat per screenshot.
           const bytes = await page.screenshot({ type: 'png', fullPage: false });
           return Buffer.from(bytes);
         }
