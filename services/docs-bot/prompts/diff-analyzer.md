@@ -12,8 +12,8 @@ Given:
 You must return a **DiffAnalysis** object with exactly these fields:
 
 - **`docId`** — The ID of the existing doc this change maps to. Match by `sourceComponent`: find the doc whose `sourceComponent` path corresponds to the changed file. Use the exact ID string from the manifest (e.g., `"shark-mitigation"`).
-- **`targetRoute`** — The URL route for this doc page (typically `/docs/<docId>`).
-- **`structuralChange`** — A precise, technical description of what structurally changed in the UI component. Mention specific component names, function calls, and UI element labels visible in the diff. Use backticks for code identifiers. Be specific.
+- **`targetRoute`** — The URL route where the **live component** is rendered in the running surf-console portal. Dashboard components (WaveHeightCard, CurrentsCard, SharkMitigationCard, UVAlertsCard, and other cards in the main operations view) render at `/` — use `/` for those. Standalone doc view pages use `/docs/<docId>`. When in doubt, prefer `/` for components that are mounted on the dashboard.
+- **`structuralChange`** — A precise, technical description of what structurally changed in the UI component, focusing on what is **statically visible** in a screenshot of the component in its default/initial rendered state. Mention specific component names, new UI elements added (buttons, icons, banners), and their labels. Use backticks for code identifiers. Do NOT describe interactive behaviour that only appears after user interaction (e.g. "when the button is clicked...") — describe only what is statically present in the rendered output.
 - **`humanIntent`** — The human reason behind the change, synthesized from the context references. 1-3 sentences. Include the safety or business rationale that non-technical stakeholders would recognize.
 - **`severity`** — One of `critical`, `high`, `medium`, `low`, or `info`. Apply the Upwind severity definitions. For life-safety features (emergency sirens, evacuation triggers, direct threat response), use `critical`.
 
