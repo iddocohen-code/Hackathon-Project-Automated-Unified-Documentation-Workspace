@@ -1,0 +1,117 @@
+/* =============================================================
+   Surf-Zone Console — global resets & animations
+   Ported from: design-mock/.../Surf-Zone Console.dc.html <head><style>
+   ============================================================= */
+
+/* box-sizing reset */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+/* base reset & apply Upwind tokens */
+html, body {
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+  font-family: var(--font-default-family);
+  background: var(--bg-secondary);
+}
+
+/* webkit scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #D8DFE9;
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+/* =============================================================
+   Keyframes (from prototype head style block)
+   ============================================================= */
+
+@keyframes uwpulse {
+  0%   { transform: scale(1);   opacity: .5 }
+  100% { transform: scale(2.6); opacity: 0  }
+}
+
+@keyframes sirenpulse {
+  0%, 100% { box-shadow: 0 0 0 0   rgba(242, 88, 60, .45) }
+  50%       { box-shadow: 0 0 0 9px rgba(242, 88, 60, 0)   }
+}
+
+@keyframes toastin {
+  from { transform: translateX(24px); opacity: 0 }
+  to   { transform: translateX(0);    opacity: 1 }
+}
+
+@keyframes overlayfade {
+  from { opacity: 0 }
+  to   { opacity: 1 }
+}
+
+@keyframes folderpop {
+  0%   { transform: scale(.82);  opacity: 0 }
+  60%  { transform: scale(1.02)             }
+  100% { transform: scale(1);    opacity: 1 }
+}
+
+@keyframes badgepulse {
+  0%, 100% { box-shadow: 0 0 0 0   rgba(44, 114, 221, .55) }
+  50%       { box-shadow: 0 0 0 6px rgba(44, 114, 221, 0)   }
+}
+
+/* =============================================================
+   Hover utility classes
+   Map prototype style-hover attributes to reusable classNames
+   ============================================================= */
+
+/* nav sidebar button */
+.uw-navbtn:hover {
+  background: var(--interactive-hover);
+}
+
+/* icon-button (toolbar, header) */
+.uw-iconbtn:hover {
+  background: var(--interactive-hover);
+}
+
+/* primary action button */
+.uw-btn-primary:hover {
+  background: var(--action-primary-hover);
+}
+
+/* secondary / outline button */
+.uw-btn-secondary:hover {
+  background: var(--interactive-hover);
+}
+
+/* card tile (folder / doc grid item) */
+.uw-card-tile:hover {
+  transform: translateY(-5px);
+}
+
+/* small close / dismiss button (circular) */
+.uw-closebtn:hover {
+  background: rgba(120, 130, 145, 0.28);
+}
+
+/* input / search field focus */
+.uw-searchinput:hover,
+.uw-searchinput:focus-within {
+  border-color: var(--border-primary);
+}
+
+/* siren / critical pulse action button */
+.uw-btn-siren:hover {
+  filter: brightness(0.93);
+}
+
+/* user avatar / profile chip */
+.uw-avatar-btn:hover {
+  background: var(--interactive-hover);
+}
