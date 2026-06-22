@@ -174,7 +174,7 @@ interface ChangeEntry {       // both a "What's New" item AND the bot's audit lo
   id: string;
   docId: string;
   summary: ChangeSummary;
-  severity: 'info' | 'critical';   // 'critical' → live notification
+  severity: 'critical' | 'high' | 'medium' | 'low' | 'info';  // Upwind CNAPP scale; 'critical'/'high' → live notification
   prUrl: string;
   contextRefs: ContextRef[];
   screenshotDiff?: { before?: string; after: string };
@@ -286,7 +286,14 @@ Detailed visual/structural brief lives in the companion **Frontend Design Spec**
 
 **A. Surf-Zone Console (the prop):** four dashboard components (Wave Height chart, Currents &
 Drifts log table, UV Index alert cards, **Shark Mitigation** panel with action buttons). Hardcoded
-mock data. shadcn/ui + Recharts.
+mock data. Built on the **Upwind design system** (CSS design tokens + Upwind Sans / DM Mono fonts)
+ported from the delivered Claude Design mock; hand-built SVG charts. *(Decision: adopt the Upwind DS
+wholesale rather than shadcn/ui — it's more authentic and pixel-faithful to the mock.)*
+
+**Demo baseline (before-state):** the delivered mock depicts the *after* state (siren button
+present, doc `v4`). We seed a clean **before** baseline — Shark panel with only `Raise flag` /
+`Notify command`, doc `v3`, no siren entry in What's New — so the live demo PR *adds* the Emergency
+Shark Siren button and regenerates to the mock's after-state.
 
 **B. Docs Portal (the showcase), three blocks:**
 1. **iOS-style hierarchical nav** — grid of rounded folder tiles; tap animates open (Framer Motion)

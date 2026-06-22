@@ -9,6 +9,13 @@ generation, the mock is delivered back and integrated into the monorepo (`apps/s
 > should be reflected in the generated mock. Sample content is provided so the mock looks real, not
 > lorem-ipsum.
 
+> **STATUS (2026-06-22): FULFILLED.** The mock was generated in **Claude Design** and delivered to
+> `docs/mock-incoming/`. It exceeded this brief: it is interactive and built on the real **Upwind
+> design system** (CSS tokens + Upwind Sans / DM Mono fonts). **Implementation decision:** adopt the
+> Upwind DS wholesale (tokens + fonts + the prototype's inline styles), *not* the shadcn/Tailwind and
+> ad-hoc token palette this brief originally proposed — so the §2 token table below is superseded by
+> the delivered `_ds/` tokens. The brief is retained for traceability.
+
 ---
 
 ## 0. What we're designing
