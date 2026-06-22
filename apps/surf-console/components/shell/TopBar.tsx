@@ -24,7 +24,7 @@ export default function TopBar({
 }: TopBarProps) {
   // Prefer the live context value; fall back to the static prop so TopBar
   // still works correctly if rendered outside <NotificationProvider>.
-  const { critical } = useNotifications();
+  const { critical, unreadCount } = useNotifications();
   const showBellDot = critical !== null || hasCriticalUpdate;
 
   return (
@@ -96,7 +96,7 @@ export default function TopBar({
       {/* Spacer */}
       <div style={{ flex: 1 }} />
 
-      {/* Gift / what's new icon with badge "3" */}
+      {/* Gift / what's new icon with unread badge */}
       <button
         className="uw-iconbtn"
         title="What's new"
@@ -115,26 +115,28 @@ export default function TopBar({
         }}
       >
         <Icon name="gift" size={19} strokeWidth={1.9} />
-        <span
-          style={{
-            position: "absolute",
-            top: 3,
-            right: 4,
-            minWidth: 15,
-            height: 15,
-            padding: "0 3px",
-            borderRadius: 8,
-            background: "var(--uw-primary-02)",
-            color: "#fff",
-            fontSize: 10,
-            fontWeight: 600,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          3
-        </span>
+        {unreadCount > 0 && (
+          <span
+            style={{
+              position: "absolute",
+              top: 3,
+              right: 4,
+              minWidth: 15,
+              height: 15,
+              padding: "0 3px",
+              borderRadius: 8,
+              background: "var(--uw-primary-02)",
+              color: "#fff",
+              fontSize: 10,
+              fontWeight: 600,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            {unreadCount}
+          </span>
+        )}
       </button>
 
       {/* Plus / add */}

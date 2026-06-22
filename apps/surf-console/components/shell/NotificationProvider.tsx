@@ -4,28 +4,34 @@
  * NotificationProvider.tsx — client context seam for live notifications.
  *
  * Exposes:
- *   { critical: ChangeEntry | null, show(entry): void, dismiss(): void }
+ *   { critical: ChangeEntry | null, show(entry): void, dismiss(): void, unreadCount: number }
  *
  * Plan 1: local/manual trigger only (?demoToast=1 query param on mount).
  * Plan 3: live SSE subscription via EventSource when NEXT_PUBLIC_BOT_URL is set.
  *   - onmessage → parse ChangeEntry → show() if severity is 'critical' or 'high'
  *   - onerror → silent (EventSource auto-reconnects)
  *   - closes on unmount
+ *
+ * Task 6B: accepts allEntryIds prop (ids of all changelog entries) to compute
+ * unreadCount via useReadState(). Consumers read unreadCount via useNotifications().
  */
 
 import React, { createContext, useContext, useState, useEffect } from "react";
 import type { ChangeEntry } from "@surf/types";
+import { useReadState } from "../../lib/readState";
 
 interface NotificationContextValue {
   critical: ChangeEntry | null;
   show: (entry: ChangeEntry) => void;
   dismiss: () => void;
+  unreadCount: number;
 }
 
 const NotificationContext = createContext<NotificationContextValue>({
   critical: null,
   show: () => {},
   dismiss: () => {},
+  unreadCount: 0,
 });
 
 /** Sample ChangeEntry used by the local demo trigger (?demoToast=1). */
@@ -43,11 +49,21 @@ const DEMO_ENTRY: ChangeEntry = {
   createdAt: new Date().toISOString(),
 };
 
-export function NotificationProvider({ children }: { children: React.ReactNode }) {
+interface NotificationProviderProps {
+  children: React.ReactNode;
+  /** ids of all changelog entries — used to compute the unread badge count */
+  allEntryIds?: string[];
+}
+
+export function NotificationProvider({ children, allEntryIds = [] }: NotificationProviderProps) {
   const [critical, setCritical] = useState<ChangeEntry | null>(null);
 
   const show = (entry: ChangeEntry) => setCritical(entry);
   const dismiss = () => setCritical(null);
+
+  // Derive unread count from read-state (live, cross-component sync via custom event)
+  const { unreadCount: computeUnreadCount } = useReadState();
+  const unreadCount = computeUnreadCount(allEntryIds);
 
   /** Plan 1 local trigger: ?demoToast=1 on mount shows the demo entry. */
   useEffect(() => {
@@ -86,7 +102,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   }, []);
 
   return (
-    <NotificationContext.Provider value={{ critical, show, dismiss }}>
+    <NotificationContext.Provider value={{ critical, show, dismiss, unreadCount }}>
       {children}
     </NotificationContext.Provider>
   );
