@@ -102,7 +102,7 @@ MONOREPO (pnpm + Turborepo)
 - **`apps/surf-console`** — a thin Next.js prop holding the console and the embedded docs portal.
   Hardcoded mock data; built fast; exists to look credible and to be the thing that "changes."
   *(For the hackathon, this surface is generated externally from the Frontend Design Spec via a
-  Claude design tool, then integrated — see §10.)*
+  Claude design tool, then integrated — see §11.)*
 - **`services/docs-bot`** — the standalone TypeScript engine. Product-agnostic by design.
 - **`packages/types`** — the shared contract (see §6).
 
@@ -112,6 +112,34 @@ MONOREPO (pnpm + Turborepo)
   **not** call the bot to render docs. No runtime coupling for content.
 - **Portal → bot (live features only):** RAG search + critical-update notifications are the *only*
   runtime calls, and both degrade gracefully.
+
+### 5.4 Repository topology, portal location & the demo trigger loop
+
+**One repository — this one.** The whole system lives in a single monorepo (the GitHub repo
+`Hackathon-Project-Automated-Unified-Documentation-Workspace`). The frontend, the bot, the shared
+types, and the generated docs all live here. There is no second repo.
+
+**Where the docs portal sits.** The portal is *not* a separate app — it is a set of routes inside
+the surf-console Next.js app, under `/docs` (`app/docs/page.tsx`, `app/docs/[slug]`,
+`app/docs/whats-new`, `app/docs/api/search`). It shares the website's top nav (a **Console | Docs**
+tab) and renders doc content from the committed `content/docs/` files. It calls the bot at runtime
+for only two things: RAG search and the critical-update notification.
+
+**The demo trigger loop (the full circle):**
+1. A PR is opened/merged **into this repo** that edits a watched frontend component
+   (`apps/surf-console/components/console/SharkMitigation.tsx`).
+2. GitHub fires a webhook to the bot, which during the demo runs locally and is reachable via a
+   tunnel (smee.io / ngrok).
+3. The path filter sees `apps/surf-console/components/**` → relevant → the pipeline runs.
+4. The publisher commits the regenerated doc back into `apps/surf-console/content/docs/**` **in this
+   same repo**. That path is filtered out, so the publish commit does not re-trigger the bot (no
+   loop).
+5. The deployed portal reads the updated `content/docs/` and shows the new doc, feed entry, and
+   notification.
+
+So the demo is a closed loop on one repo: **merge in → bot reacts → bot writes back → portal
+renders.** In production the same mechanism maps to watching the real frontend repo and publishing
+to a docs location; "frontend-only" filtering simply becomes repo-based instead of path-based.
 
 ## 6. The shared documentation contract (`packages/types`)
 
@@ -221,7 +249,37 @@ Each stage produces its typed output or throws a typed error logged with the job
 job only*. Because the manifest is updated only by the publisher's final commit, any failure leaves
 the docs untouched and the demo can re-run a clean job.
 
-## 8. The frontend (`apps/surf-console`) — overview
+## 8. RAG documentation search (first-class AI feature)
+
+The docs portal includes a natural-language search powered by Retrieval-Augmented Generation. This
+is a primary feature of the documentation experience, not an add-on: a human user asks a question in
+plain language and gets a direct answer **grounded in — and linked to — the actual documentation.**
+
+**Flow:**
+1. The user types a natural-language question in the portal search bar (e.g. *"How do I trigger the
+   shark siren?"*).
+2. The portal calls the bot's `/search` endpoint (the one genuine portal→engine runtime call).
+3. The engine retrieves the most relevant passages from the **RAG index** — a vector index built
+   from the published docs (`content/docs/`), rebuilt by the publisher on every update so it never
+   drifts from the live docs.
+4. Claude (Sonnet 4.6, for low latency) synthesizes a concise answer **strictly from the retrieved
+   passages**, returning it with `SearchResult[]` citations.
+5. The portal renders an answer card plus cited source rows, each with a **deep link** into the
+   exact documentation section (`/docs/shark-mitigation#emergency-siren`) — a "Jump to section →".
+
+**Design properties:**
+- **Grounded, not hallucinated:** answers are constrained to retrieved doc passages and always carry
+  a citation back to the source doc. If the docs can't answer, the engine says so rather than
+  inventing.
+- **Always current:** because the index is rebuilt at publish time, a freshly auto-generated doc
+  (e.g. the new siren procedure) is immediately answerable — this closes the loop between the bot
+  and search, and is a strong demo beat (step 12).
+- **Graceful degradation:** if the engine is offline, the search bar reports "engine offline" and
+  the rest of the portal (folders, docs, feed) keeps working from the committed files.
+- **Vector store:** kept lightweight (in-memory / sqlite-vec for the small baseline corpus);
+  finalized in the execution plan.
+
+## 9. The frontend (`apps/surf-console`) — overview
 
 Detailed visual/structural brief lives in the companion **Frontend Design Spec**
 (`2026-06-22-frontend-design-spec.md`). Summary:
@@ -242,7 +300,7 @@ mock data. shadcn/ui + Recharts.
 **Data seam:** static content read directly from committed files (no runtime bot dependency); only
 RAG search + critical notifications hit the engine, and both degrade gracefully.
 
-## 9. Demo script (Shark Mitigation live update, ~3 min)
+## 10. Demo script (Shark Mitigation live update, ~3 min)
 
 **Setup:** console deployed on the Shark panel (old docs, no siren); portal open; bot running with a
 webhook tunnel (smee.io/ngrok) in demo mode; a branch ready with the "Emergency Shark Siren" change.
@@ -270,7 +328,7 @@ console so waiting moments are watchable.
 (text + screenshot + Jira/Slack context, flagged critical) → a customer can already ask about it in
 plain English → kicker: "point it at real Upwind tomorrow."
 
-## 10. Build order (revised — frontend mock produced externally)
+## 11. Build order (revised — frontend mock produced externally)
 
 The frontend prop is **not** built first by the implementation team. Instead:
 - **Frontend Design Spec** (companion doc) is written → the user generates the **mock frontend**
@@ -300,7 +358,7 @@ reviewed, via the writing-plans skill. It is structured in two tiers: **mock-ind
 engine, pipeline, data contract, RAG, publishing, demo harness — buildable immediately) and
 **frontend-integration work** (specified now, refined against the actual delivered mock).
 
-## 11. Repo layout
+## 12. Repo layout
 
 ```
 surf-docs-workspace/
@@ -318,10 +376,43 @@ surf-docs-workspace/
 ├── turbo.json · pnpm-workspace.yaml · .env.example · README.md
 ```
 
-## 12. Open questions / future
+## 13. Future features / roadmap (presented, not built)
+
+These are part of the vision and the pitch, but explicitly **out of scope to build** for the
+hackathon — presented as where the product goes next.
+
+### 13.1 Agent-facing documentation interface ("docs for agents")
+The docs portal described above is built for **human** users: a visual, iOS-style, progressively
+disclosed experience optimized for people. We believe many of the tasks humans perform in consoles
+like this today will increasingly be performed by **AI agents**. So the roadmap feature is a
+**parallel documentation interface meant for agents** — the *same underlying documentation content*
+exposed in a form optimized for machine consumption rather than human browsing.
+
+Where a human navigates folders and reads rendered pages, an agent would **inspect and query the
+docs programmatically** — more directly and efficiently than by scraping the human UI. Concretely,
+this could take the form of:
+- A structured, semantic, token-efficient representation of every doc (e.g. an `llms.txt` /
+  `llms-full.txt`-style export, or clean structured JSON derived from the same typed `Doc` model).
+- An **agent query API / MCP server** exposing the docs as machine-callable resources plus a
+  semantic search tool, so an autonomous agent can ask, retrieve, and cite documentation as part of
+  its own task execution.
+
+**Why it's architecturally cheap to add later:** because all docs already flow through one typed
+contract (`packages/types`) and a rebuildable RAG index, the agent interface is simply a *second
+projection* of the same content — no new source of truth, just an additional machine-first surface
+over what the engine already produces. It is deliberately not built now to keep the hackathon scope
+focused on the human experience and the live pipeline.
+
+### 13.2 Other future work (behind existing interfaces)
+- **Full Anthropic Computer Use** as the production replacement for the downgraded Playwright
+  screenshot step — the `ScreenshotCapture` interface already leaves room for a `ComputerUseCapture`.
+- **Real org connectors** (live Jira / Slack / Confluence) replacing the demo fixtures, behind the
+  same `ContextSource` interface.
+- **Production scheduler** (real UI-stabilization + deploy-health waiting) replacing the demo's
+  instant scheduler, behind the same `Scheduler` interface.
+
+## 14. Open questions
 - Vector store choice for RAG (in-memory vs sqlite-vec vs pgvector) — finalize in the execution plan
-  based on corpus size; baseline corpus is small, so in-memory/sqlite is likely sufficient.
-- Hosting: Vercel for the Next.js app; bot runs locally with a tunnel for the demo (simplest), or
-  Railway/Render/Fly for a hosted bot.
-- Production connectors (real Jira/Slack/Confluence) and real Computer Use are explicitly future
-  work behind existing interfaces.
+  based on corpus size; the baseline corpus is small, so in-memory / sqlite is likely sufficient.
+- Hosting: Vercel for the Next.js app; the bot runs locally with a tunnel for the demo (simplest),
+  or Railway / Render / Fly for a hosted bot.
