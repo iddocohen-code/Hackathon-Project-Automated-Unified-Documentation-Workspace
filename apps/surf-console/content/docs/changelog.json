@@ -1,0 +1,54 @@
+[
+  {
+    "id": "chg-126",
+    "docId": "wave-height-telemetry",
+    "summary": {
+      "headline": "Wave Height chart now supports a 7-day range",
+      "detail": "Wave Height chart now supports a 7-day range view. Data is sourced from buoy telemetry feeds at 15-minute intervals, improving trend visibility for surf forecasters.",
+      "intentSource": "JIRA SURF-138"
+    },
+    "severity": "info",
+    "prUrl": "https://github.com/org/surf-console/pull/126",
+    "contextRefs": [
+      {
+        "kind": "jira",
+        "ref": "JIRA SURF-138",
+        "url": "https://jira.example.com/browse/SURF-138",
+        "excerpt": "Wave height chart 7-day range support requested by forecast team."
+      },
+      {
+        "kind": "git",
+        "ref": "PR #126",
+        "url": "https://github.com/org/surf-console/pull/126",
+        "excerpt": "Add 7-day range toggle to WaveHeightChart component."
+      }
+    ],
+    "createdAt": "2025-04-05T14:15:00Z"
+  },
+  {
+    "id": "chg-121",
+    "docId": "network-currents",
+    "summary": {
+      "headline": "Currents & Drifts adds a red Rip Current status pill",
+      "detail": "Currents & Drifts panel now displays a red Rip Current status pill when rip current danger index exceeds threshold 7. Improves at-a-glance safety awareness for lifeguards.",
+      "intentSource": "#surf-safety"
+    },
+    "severity": "info",
+    "prUrl": "https://github.com/org/surf-console/pull/121",
+    "contextRefs": [
+      {
+        "kind": "slack",
+        "ref": "#surf-safety",
+        "url": "https://slack.example.com/channels/surf-safety",
+        "excerpt": "Request to add rip current status pill from the surf safety channel."
+      },
+      {
+        "kind": "git",
+        "ref": "PR #121",
+        "url": "https://github.com/org/surf-console/pull/121",
+        "excerpt": "Add red Rip Current status pill to Currents & Drifts panel."
+      }
+    ],
+    "createdAt": "2025-02-18T11:45:00Z"
+  }
+]
