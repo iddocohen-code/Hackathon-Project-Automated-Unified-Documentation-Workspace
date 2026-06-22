@@ -16,13 +16,13 @@ import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
 
-import type { PullRequestEvent, Doc, ChangeEntry, DocsManifest } from '@surf/types';
+import type { PullRequestEvent, Doc, ChangeEntry, DocsManifest, Screenshot } from '@surf/types';
 
 import { getDiff } from '../git/diff.js';
 import { aggregateContext } from '../context/source.js';
 import type { ContextSource } from '../context/source.js';
 import { analyzeDiff } from '../claude/analyzeDiff.js';
-import type { ScreenshotCapture } from '../capture/capture.js';
+import type { ScreenshotCapture, CapturedState } from '../capture/capture.js';
 import { visionCheck } from '../claude/visionCheck.js';
 import { writeDoc } from '../claude/writeDoc.js';
 import { publish } from '../publish/publisher.js';
@@ -122,38 +122,88 @@ export function makeRunJob(deps: RunJobDeps) {
     }
 
     // -----------------------------------------------------------------------
-    // Stage 4: capture screenshot
+    // Stage 4: capture screenshots — default state + one per interaction
     // -----------------------------------------------------------------------
-    log(`Capturing UI…  [job=${jobId}]`, { docId: diffAnalysis.docId, route: diffAnalysis.targetRoute });
+    log(`Capturing UI…  [job=${jobId}]`, {
+      docId: diffAnalysis.docId,
+      route: diffAnalysis.targetRoute,
+      interactions: diffAnalysis.interactions.length,
+    });
     const captureRoute = diffAnalysis.targetRoute ?? '/';
     const captureSelector = `[data-doc-target="${diffAnalysis.docId}"]`;
-    let captureResult: Awaited<ReturnType<ScreenshotCapture['capture']>>;
+    let capturedStates: CapturedState[];
     try {
-      captureResult = await capture.capture({ route: captureRoute, selector: captureSelector });
+      capturedStates = await capture.captureStates({
+        route: captureRoute,
+        selector: captureSelector,
+        interactions: diffAnalysis.interactions,
+      });
     } catch (err) {
       log(`[job=${jobId}] ABORT at capture`, { error: String(err) });
       return;
     }
 
     // -----------------------------------------------------------------------
-    // Stage 5: visionCheck
+    // Stage 5: visionCheck — verify EACH state.
+    //
+    // The first captured state is always "default"; the remaining states map
+    // 1:1 (in order) to diffAnalysis.interactions. The claim used for the
+    // vision check is:
+    //   - default state  → diffAnalysis.structuralChange
+    //   - activated state → the matching interaction's `reveals`
+    //
+    // Halt the whole job ONLY if the DEFAULT state fails (the core change is
+    // not visible). If an ACTIVATED state fails, log a warning and DROP that
+    // screenshot — never halt on a click-only / conditional state.
     // -----------------------------------------------------------------------
-    let visionVerdict: Awaited<ReturnType<typeof visionCheck>>;
-    try {
-      visionVerdict = await visionCheck(captureResult.pngBuffer, diffAnalysis.structuralChange);
-    } catch (err) {
-      log(`[job=${jobId}] ABORT at visionCheck`, { error: String(err) });
-      return;
+    const passingStates: CapturedState[] = [];
+    let defaultStateFailed = false;
+    for (let i = 0; i < capturedStates.length; i += 1) {
+      const captured = capturedStates[i]!;
+      const isDefault = i === 0;
+      const claim = isDefault
+        ? diffAnalysis.structuralChange
+        : (diffAnalysis.interactions[i - 1]?.reveals ?? diffAnalysis.structuralChange);
+
+      let verdict: Awaited<ReturnType<typeof visionCheck>>;
+      try {
+        verdict = await visionCheck(captured.pngBuffer, claim);
+      } catch (err) {
+        if (isDefault) {
+          log(`[job=${jobId}] ABORT at visionCheck`, { error: String(err) });
+          return;
+        }
+        // Activated-state vision error → degrade gracefully, drop screenshot
+        log(`[job=${jobId}] Vision check ERROR on activated state — dropping`, {
+          state: captured.state,
+          error: String(err),
+        });
+        continue;
+      }
+
+      if (verdict.showsChange) {
+        log(`Vision check ✓  [job=${jobId}]`, { state: captured.state, note: verdict.note });
+        passingStates.push(captured);
+      } else if (isDefault) {
+        defaultStateFailed = true;
+        log(`[job=${jobId}] Vision check MISMATCH (default) — halting without publish`, {
+          note: verdict.note,
+          claimedChange: claim,
+        });
+        break;
+      } else {
+        // Activated state failed — warn and drop, do NOT halt
+        log(`[job=${jobId}] Vision check MISMATCH (activated) — dropping screenshot`, {
+          state: captured.state,
+          note: verdict.note,
+          claimedChange: claim,
+        });
+      }
     }
 
-    if (!visionVerdict.showsChange) {
-      log(`[job=${jobId}] Vision check MISMATCH — halting without publish`, {
-        note: visionVerdict.note,
-        claimedChange: diffAnalysis.structuralChange,
-      });
+    if (defaultStateFailed) {
       return;
     }
-    log(`Vision check ✓  [job=${jobId}]`, { note: visionVerdict.note });
 
     // -----------------------------------------------------------------------
     // Stage 6: writeDoc — load existing doc for context
@@ -189,11 +239,15 @@ export function makeRunJob(deps: RunJobDeps) {
         version: found.version,
       };
 
+      const defaultState = passingStates[0]!; // guaranteed: default passed (else we returned)
       docDraft = await writeDoc({
         existingDoc,
         diffAnalysis,
         context: contextRefs,
-        screenshotMeta: { alt: captureResult.alt, path: `/docs-screenshots/${diffAnalysis.docId}/screenshot-v${found.version + 1}.png` },
+        screenshotMeta: {
+          alt: defaultState.alt,
+          path: `/docs-screenshots/${diffAnalysis.docId}/screenshot-v${found.version + 1}-${defaultState.state}.png`,
+        },
       });
     } catch (err) {
       log(`[job=${jobId}] ABORT at writeDoc`, { error: String(err) });
@@ -205,7 +259,19 @@ export function makeRunJob(deps: RunJobDeps) {
     // -----------------------------------------------------------------------
     const now = new Date().toISOString();
     const newVersion = currentDoc.version + 1;
-    const screenshotPath = `/docs-screenshots/${diffAnalysis.docId}/screenshot-v${newVersion}.png`;
+
+    // One Screenshot per PASSING state, paired with its PNG buffer for the
+    // publisher. Filenames embed the state slug: screenshot-v<n>-<state>.png.
+    const publishScreenshots = passingStates.map((s) => {
+      const screenshotPath = `/docs-screenshots/${diffAnalysis.docId}/screenshot-v${newVersion}-${s.state}.png`;
+      const screenshot: Screenshot = {
+        path: screenshotPath,
+        alt: s.alt,
+        capturedAt: now,
+        targetSelector: captureSelector,
+      };
+      return { screenshot, pngBuffer: s.pngBuffer };
+    });
 
     const assembledDoc: Doc = {
       ...currentDoc,
@@ -214,15 +280,18 @@ export function makeRunJob(deps: RunJobDeps) {
       version: newVersion,
       updatedAt: now,
       lastChange: docDraft.changeSummary,
-      screenshots: [
-        {
-          path: screenshotPath,
-          alt: captureResult.alt,
-          capturedAt: now,
-          targetSelector: captureSelector,
-        },
-      ],
+      screenshots: publishScreenshots.map((ps) => ps.screenshot),
     };
+
+    // screenshotDiff.after = the most informative new state: the last activated
+    // state if any passed, else the default state. passingStates[0] is default.
+    const afterScreenshot =
+      publishScreenshots.length > 1
+        ? publishScreenshots[publishScreenshots.length - 1]!.screenshot
+        : publishScreenshots[0]!.screenshot;
+
+    // before = the prior doc's most recent screenshot path, if any.
+    const beforePath = currentDoc.screenshots[currentDoc.screenshots.length - 1]?.path;
 
     const changeEntry: ChangeEntry = {
       id: `chg-${randomUUID().slice(0, 8)}`,
@@ -231,18 +300,25 @@ export function makeRunJob(deps: RunJobDeps) {
       severity: diffAnalysis.severity,
       prUrl: event.prUrl,
       contextRefs,
-      screenshotDiff: { after: screenshotPath },
+      screenshotDiff: {
+        ...(beforePath ? { before: beforePath } : {}),
+        after: afterScreenshot.path,
+      },
       createdAt: now,
     };
 
     // -----------------------------------------------------------------------
     // Stage 8: publish
     // -----------------------------------------------------------------------
-    log(`Publishing  [job=${jobId}]`, { docId: diffAnalysis.docId, version: newVersion });
+    log(`Publishing  [job=${jobId}]`, {
+      docId: diffAnalysis.docId,
+      version: newVersion,
+      screenshots: publishScreenshots.length,
+    });
     try {
       await publish({
         doc: assembledDoc,
-        pngBuffer: captureResult.pngBuffer,
+        screenshots: publishScreenshots,
         changeEntry,
         docsContentDir,
         screenshotsPublicDir,

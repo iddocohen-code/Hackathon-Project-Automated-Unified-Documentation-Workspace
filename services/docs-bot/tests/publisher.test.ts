@@ -127,7 +127,7 @@ describe('publisher.publish()', () => {
   it('writes index.md with the regenerated body', async () => {
     await publish({
       doc: V4_SHARK_DOC,
-      pngBuffer: FAKE_PNG,
+      screenshots: [{ screenshot: V4_SHARK_DOC.screenshots[0], pngBuffer: FAKE_PNG }],
       changeEntry: NEW_CHANGE_ENTRY,
       docsContentDir,
       screenshotsPublicDir,
@@ -143,7 +143,7 @@ describe('publisher.publish()', () => {
   it('writes the PNG to screenshotsPublicDir/<docId>/', async () => {
     await publish({
       doc: V4_SHARK_DOC,
-      pngBuffer: FAKE_PNG,
+      screenshots: [{ screenshot: V4_SHARK_DOC.screenshots[0], pngBuffer: FAKE_PNG }],
       changeEntry: NEW_CHANGE_ENTRY,
       docsContentDir,
       screenshotsPublicDir,
@@ -165,7 +165,7 @@ describe('publisher.publish()', () => {
   it('updates manifest: shark-mitigation doc is version 4, has non-empty screenshots with web paths, and bodyMarkdown === ""', async () => {
     await publish({
       doc: V4_SHARK_DOC,
-      pngBuffer: FAKE_PNG,
+      screenshots: [{ screenshot: V4_SHARK_DOC.screenshots[0], pngBuffer: FAKE_PNG }],
       changeEntry: NEW_CHANGE_ENTRY,
       docsContentDir,
       screenshotsPublicDir,
@@ -186,7 +186,7 @@ describe('publisher.publish()', () => {
   it('preserves categories verbatim (still 4 categories each with docCount)', async () => {
     await publish({
       doc: V4_SHARK_DOC,
-      pngBuffer: FAKE_PNG,
+      screenshots: [{ screenshot: V4_SHARK_DOC.screenshots[0], pngBuffer: FAKE_PNG }],
       changeEntry: NEW_CHANGE_ENTRY,
       docsContentDir,
       screenshotsPublicDir,
@@ -206,7 +206,7 @@ describe('publisher.publish()', () => {
   it('leaves other docs (storm-surge-response, wave-height-telemetry, currents-drifts) untouched', async () => {
     await publish({
       doc: V4_SHARK_DOC,
-      pngBuffer: FAKE_PNG,
+      screenshots: [{ screenshot: V4_SHARK_DOC.screenshots[0], pngBuffer: FAKE_PNG }],
       changeEntry: NEW_CHANGE_ENTRY,
       docsContentDir,
       screenshotsPublicDir,
@@ -233,7 +233,7 @@ describe('publisher.publish()', () => {
   it('prepends the new ChangeEntry to changelog.json; 2 pre-existing info entries remain', async () => {
     await publish({
       doc: V4_SHARK_DOC,
-      pngBuffer: FAKE_PNG,
+      screenshots: [{ screenshot: V4_SHARK_DOC.screenshots[0], pngBuffer: FAKE_PNG }],
       changeEntry: NEW_CHANGE_ENTRY,
       docsContentDir,
       screenshotsPublicDir,
@@ -262,7 +262,7 @@ describe('publisher.publish()', () => {
   it('after sort by createdAt desc, the new critical entry comes first', async () => {
     await publish({
       doc: V4_SHARK_DOC,
-      pngBuffer: FAKE_PNG,
+      screenshots: [{ screenshot: V4_SHARK_DOC.screenshots[0], pngBuffer: FAKE_PNG }],
       changeEntry: NEW_CHANGE_ENTRY,
       docsContentDir,
       screenshotsPublicDir,
@@ -281,7 +281,7 @@ describe('publisher.publish()', () => {
   it('contract check: manifest doc validates as Doc shape; getDoc-equivalent yields v4 with real body', async () => {
     await publish({
       doc: V4_SHARK_DOC,
-      pngBuffer: FAKE_PNG,
+      screenshots: [{ screenshot: V4_SHARK_DOC.screenshots[0], pngBuffer: FAKE_PNG }],
       changeEntry: NEW_CHANGE_ENTRY,
       docsContentDir,
       screenshotsPublicDir,
@@ -319,7 +319,7 @@ describe('publisher.publish()', () => {
   it('manifest doc screenshots use web paths (not filesystem paths)', async () => {
     await publish({
       doc: V4_SHARK_DOC,
-      pngBuffer: FAKE_PNG,
+      screenshots: [{ screenshot: V4_SHARK_DOC.screenshots[0], pngBuffer: FAKE_PNG }],
       changeEntry: NEW_CHANGE_ENTRY,
       docsContentDir,
       screenshotsPublicDir,

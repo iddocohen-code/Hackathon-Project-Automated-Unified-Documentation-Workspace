@@ -37,11 +37,26 @@ export type CommitFn = (paths: string[], message: string) => Promise<void>;
 /** No-op hook type for Plan 2 */
 export type NoOpHook = () => Promise<void>;
 
+/**
+ * A single per-state screenshot to publish: the Screenshot metadata (already
+ * present on the Doc) paired with its raw PNG bytes. The `screenshot.path` is
+ * the web path (`/docs-screenshots/<docId>/...`) and determines the on-disk
+ * filename the PNG is written to.
+ */
+export interface PublishScreenshot {
+  screenshot: Screenshot;
+  pngBuffer: Buffer;
+}
+
 export interface PublishInput {
   /** The assembled, regenerated Doc (with new body, version, screenshots, lastChange). */
   doc: Doc;
-  /** Raw PNG bytes for the screenshot. */
-  pngBuffer: Buffer;
+  /**
+   * Per-state screenshots to write. Each entry pairs a Screenshot (whose
+   * `path` matches an entry in `doc.screenshots`) with its raw PNG bytes.
+   * Every PNG is written to its web path's on-disk location.
+   */
+  screenshots: PublishScreenshot[];
   /** The new ChangeEntry to prepend to changelog. */
   changeEntry: ChangeEntry;
   /** Filesystem path to content/docs root. */
@@ -87,18 +102,18 @@ async function atomicWriteFile(filePath: string, content: string | Buffer): Prom
 }
 
 // ---------------------------------------------------------------------------
-// Derive the PNG filename and web path from the doc
+// Derive the on-disk PNG filename for a screenshot's web path
 // ---------------------------------------------------------------------------
 
-function derivePngInfo(doc: Doc): { filename: string; webPath: string } {
-  // Use the first screenshot's path if present (strip the leading /docs-screenshots/<docId>/)
-  // Otherwise derive a name from the doc id + version
-  const screenshotInDoc = doc.screenshots[0];
+function derivePngInfo(
+  doc: Doc,
+  screenshot: Screenshot,
+): { filename: string; webPath: string } {
+  // screenshot.path is the web path, e.g.
+  //   /docs-screenshots/shark-mitigation/screenshot-v4-default.png
   let filename: string;
-
-  if (screenshotInDoc && screenshotInDoc.path) {
-    // path is like /docs-screenshots/shark-mitigation/screenshot-v4.png
-    filename = path.basename(screenshotInDoc.path);
+  if (screenshot.path) {
+    filename = path.basename(screenshot.path);
   } else {
     filename = `screenshot-v${doc.version}.png`;
   }
@@ -114,7 +129,7 @@ function derivePngInfo(doc: Doc): { filename: string; webPath: string } {
 export async function publish(input: PublishInput): Promise<void> {
   const {
     doc,
-    pngBuffer,
+    screenshots,
     changeEntry,
     docsContentDir,
     screenshotsPublicDir,
@@ -123,15 +138,12 @@ export async function publish(input: PublishInput): Promise<void> {
     onIndexRebuild,
   } = input;
 
-  const { filename: pngFilename, webPath: pngWebPath } = derivePngInfo(doc);
-
   // Filesystem paths
   const docDir = path.join(docsContentDir, doc.id);
   const indexMdPath = path.join(docDir, 'index.md');
   const manifestPath = path.join(docsContentDir, 'manifest.json');
   const changelogPath = path.join(docsContentDir, 'changelog.json');
   const screenshotDocDir = path.join(screenshotsPublicDir, doc.id);
-  const pngFsPath = path.join(screenshotDocDir, pngFilename);
 
   // -------------------------------------------------------------------------
   // Step 1: Write index.md (body markdown only — no frontmatter)
@@ -140,10 +152,16 @@ export async function publish(input: PublishInput): Promise<void> {
   await atomicWriteFile(indexMdPath, doc.bodyMarkdown);
 
   // -------------------------------------------------------------------------
-  // Step 2: Write PNG to screenshotsPublicDir/<docId>/<file>.png
+  // Step 2: Write EACH per-state PNG to screenshotsPublicDir/<docId>/<file>.png
   // -------------------------------------------------------------------------
   await mkdir(screenshotDocDir, { recursive: true });
-  await atomicWriteFile(pngFsPath, pngBuffer);
+  const writtenPngFsPaths: string[] = [];
+  for (const { screenshot, pngBuffer } of screenshots) {
+    const { filename } = derivePngInfo(doc, screenshot);
+    const pngFsPath = path.join(screenshotDocDir, filename);
+    await atomicWriteFile(pngFsPath, pngBuffer);
+    writtenPngFsPaths.push(pngFsPath);
+  }
 
   // -------------------------------------------------------------------------
   // Step 3: Update manifest.json — surgical replacement of one doc entry
@@ -157,18 +175,17 @@ export async function publish(input: PublishInput): Promise<void> {
   const manifest = JSON.parse(manifestRaw) as DocsManifest;
 
   // Build the updated screenshot list for the manifest entry.
-  // Use the web path from the published PNG, not the doc's screenshots
-  // (which may already be correct, but we recompute from ground truth).
-  const manifestScreenshots: Screenshot[] = [
-    {
-      path: pngWebPath,
-      alt: doc.screenshots[0]?.alt ?? `${doc.title} screenshot`,
-      capturedAt: doc.screenshots[0]?.capturedAt ?? new Date().toISOString(),
-      ...(doc.screenshots[0]?.targetSelector
-        ? { targetSelector: doc.screenshots[0].targetSelector }
-        : {}),
-    },
-  ];
+  // One entry per Doc screenshot; recompute each path from ground truth so the
+  // manifest always carries the web path (/docs-screenshots/...).
+  const manifestScreenshots: Screenshot[] = doc.screenshots.map((s) => {
+    const { webPath } = derivePngInfo(doc, s);
+    return {
+      path: webPath,
+      alt: s.alt ?? `${doc.title} screenshot`,
+      capturedAt: s.capturedAt ?? new Date().toISOString(),
+      ...(s.targetSelector ? { targetSelector: s.targetSelector } : {}),
+    };
+  });
 
   // Replace ONLY the matching doc entry; leave all others untouched.
   const updatedDocs = manifest.docs.map((existing) => {
@@ -205,13 +222,15 @@ export async function publish(input: PublishInput): Promise<void> {
   const changelogRaw = await readFile(changelogPath, 'utf-8');
   const changelog = JSON.parse(changelogRaw) as Changelog;
 
-  // Ensure screenshotDiff.after uses the correct web path
+  // Ensure screenshotDiff.after uses the correct web path. The caller sets
+  // `after` to the most-informative new state's web path; normalize it to the
+  // canonical /docs-screenshots/<docId>/<file> form (filename only).
   const entryToWrite: ChangeEntry = {
     ...changeEntry,
     screenshotDiff: changeEntry.screenshotDiff
       ? {
           ...changeEntry.screenshotDiff,
-          after: pngWebPath,
+          after: `/docs-screenshots/${doc.id}/${path.basename(changeEntry.screenshotDiff.after)}`,
         }
       : undefined,
   };
@@ -231,7 +250,7 @@ export async function publish(input: PublishInput): Promise<void> {
   // Pass filesystem paths; the commitFn is responsible for resolving them
   // relative to the repo root if needed.
   await commitFn(
-    [indexMdPath, manifestPath, changelogPath, pngFsPath],
+    [indexMdPath, manifestPath, changelogPath, ...writtenPngFsPaths],
     commitMessage,
   );
 
