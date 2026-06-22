@@ -16,19 +16,10 @@ export default async function DocsPage() {
     getDocsByCategory("incident-protocols"),
   ]);
 
-  // Build counts map from the manifest docs array (authoritative per-category count).
-  // The manifest JSON also carries docCount on each category, but we derive from docs
-  // to stay in sync with the type-safe DocCategory interface.
+  // docCount is the authoritative claimed per-folder count (may exceed fully-defined docs); fall back to counting real docs.
   const counts: Record<string, number> = {};
   for (const cat of categories) {
-    counts[cat.id] = manifest.docs.filter((d) => d.category.id === cat.id).length;
-  }
-
-  // The manifest only has 3 docs but the brief specifies the claimed counts
-  // (telemetry-metrics: 4, network-currents: 3, alerts-remediation: 3, incident-protocols: 2).
-  // Use the manifest JSON's docCount field if available.
-  for (const cat of categories) {
-    if (cat.docCount !== undefined) counts[cat.id] = cat.docCount;
+    counts[cat.id] = cat.docCount ?? manifest.docs.filter((d) => d.category.id === cat.id).length;
   }
 
   return (

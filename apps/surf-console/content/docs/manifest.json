@@ -82,6 +82,25 @@
         "detail": "Wave Height chart now supports a 7-day range view. Data is sourced from buoy telemetry feeds at 15-minute intervals.",
         "intentSource": "JIRA SURF-138"
       }
+    },
+    {
+      "id": "currents-drifts",
+      "title": "Currents & Drifts",
+      "category": {
+        "id": "network-currents",
+        "name": "Network & Currents",
+        "icon": "waves"
+      },
+      "bodyMarkdown": "",
+      "screenshots": [],
+      "sourceComponent": "apps/surf-console/components/console/CurrentsCard.tsx",
+      "version": 1,
+      "updatedAt": "2025-02-18T11:45:00Z",
+      "lastChange": {
+        "headline": "Currents & Drifts adds a red Rip Current status pill",
+        "detail": "Currents & Drifts panel now displays a red Rip Current status pill when rip current danger index exceeds threshold 7. Improves at-a-glance safety awareness for lifeguards.",
+        "intentSource": "#surf-safety"
+      }
     }
   ]
 }

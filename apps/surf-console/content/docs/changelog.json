@@ -27,7 +27,7 @@
   },
   {
     "id": "chg-121",
-    "docId": "network-currents",
+    "docId": "currents-drifts",
     "summary": {
       "headline": "Currents & Drifts adds a red Rip Current status pill",
       "detail": "Currents & Drifts panel now displays a red Rip Current status pill when rip current danger index exceeds threshold 7. Improves at-a-glance safety awareness for lifeguards.",
