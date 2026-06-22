@@ -24,12 +24,9 @@ export default async function DocsPage() {
 
   // The manifest only has 3 docs but the brief specifies the claimed counts
   // (telemetry-metrics: 4, network-currents: 3, alerts-remediation: 3, incident-protocols: 2).
-  // Use the manifest JSON's docCount field if available (cast via unknown).
+  // Use the manifest JSON's docCount field if available.
   for (const cat of categories) {
-    const catWithCount = cat as unknown as { id: string; docCount?: number };
-    if (catWithCount.docCount !== undefined) {
-      counts[cat.id] = catWithCount.docCount;
-    }
+    if (cat.docCount !== undefined) counts[cat.id] = cat.docCount;
   }
 
   return (

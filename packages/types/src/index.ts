@@ -7,6 +7,8 @@ export interface DocCategory {
   name: string;
   icon: string;
   parentId?: string;
+  /** Display count of docs in this category (may exceed the number of fully-defined Doc entries). */
+  docCount?: number;
 }
 
 /** A captured screenshot associated with a documentation page or change. */

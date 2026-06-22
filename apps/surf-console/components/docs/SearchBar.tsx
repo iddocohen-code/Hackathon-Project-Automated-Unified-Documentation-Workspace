@@ -1,5 +1,3 @@
-"use client";
-
 /**
  * SearchBar — decorative search with RAG affordance.
  * Source: design-mock lines 363–368.

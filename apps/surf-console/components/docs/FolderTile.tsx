@@ -207,7 +207,10 @@ export default function FolderTile({
   onOpen,
 }: FolderTileProps) {
   const [hovered, setHovered] = useState(false);
-  const config = TILE_CONFIGS[categoryId] ?? TILE_CONFIGS["telemetry-metrics"]!;
+  const config = TILE_CONFIGS[categoryId] ?? (
+    console.warn(`FolderTile: no tile config for category "${categoryId}", falling back to telemetry-metrics`),
+    TILE_CONFIGS["telemetry-metrics"]!
+  );
 
   const countLabel =
     categoryId === "incident-protocols"
