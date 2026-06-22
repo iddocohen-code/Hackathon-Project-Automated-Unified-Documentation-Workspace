@@ -2,22 +2,45 @@ import Fastify from 'fastify';
 import type { Config } from './config.js';
 import { verifyGithubSignature } from './webhook/verify.js';
 import { toPullRequestEvent } from './webhook/normalize.js';
+import { isRelevant } from './pipeline/filter.js';
+import { makeScheduler } from './pipeline/scheduler.js';
+import type { Scheduler } from './pipeline/scheduler.js';
 import type { PullRequestEvent } from '@surf/types';
 
-/**
- * Stub handler for a normalised PR event.
- * The real scheduler/pipeline is wired in Task 4.
- */
-function handlePullRequestEvent(event: PullRequestEvent): void {
-  // no-op for now; Task 4 wires the scheduler
-  void event;
-}
-
-export function buildApp(config?: Config) {
+export function buildApp(config?: Config, scheduler?: Scheduler) {
   const app = Fastify({ logger: true });
+
+  // ---------------------------------------------------------------------------
+  // Scheduler setup
+  //
+  // A stub `run` callback is used until Task 11 wires the real pipeline.
+  // Note: changedPaths is currently always [] from toPullRequestEvent (the
+  // GitHub PR webhook payload doesn't include file paths). isRelevant([]) is
+  // always false, so scheduler.enqueue will rarely fire from the webhook until
+  // Task 5 populates changedPaths from the mergedSha. The wiring is correct
+  // and future-proof for when Task 5/11 are in place.
+  // ---------------------------------------------------------------------------
+  const stubRun = async (event: PullRequestEvent): Promise<void> => {
+    app.log.info({ prUrl: event.prUrl }, 'scheduler: stub run (pipeline not yet wired)');
+  };
+
+  const activeScheduler: Scheduler =
+    scheduler ?? makeScheduler(
+      {
+        schedulerMode: config?.schedulerMode ?? 'instant',
+        debounceMs: 30_000,
+      },
+      stubRun,
+    );
 
   app.get('/health', async () => {
     return { ok: true };
+  });
+
+  // POST /run-now — trigger the scheduler flush immediately.
+  app.post('/run-now', async (_request, reply) => {
+    await activeScheduler.runNow();
+    return reply.code(202).send({ status: 'flushed' });
   });
 
   // POST /webhook — receives GitHub PR events.
@@ -57,7 +80,13 @@ export function buildApp(config?: Config) {
     const event = toPullRequestEvent(request.body);
 
     if (event !== null) {
-      handlePullRequestEvent(event);
+      // Enqueue only if the changed paths are relevant (UI source files).
+      // changedPaths is [] until Task 5 populates it from mergedSha — so
+      // isRelevant([]) = false and this branch won't fire from the webhook
+      // until then. The wiring is intentionally correct for Task 5/11.
+      if (isRelevant(event.changedPaths)) {
+        activeScheduler.enqueue(event);
+      }
       return reply.code(202).send({ status: 'accepted' });
     }
 
