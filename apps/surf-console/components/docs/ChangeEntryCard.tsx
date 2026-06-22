@@ -134,6 +134,62 @@ export default function ChangeEntryCard({ entry }: ChangeEntryCardProps) {
         )}
       </div>
 
+      {/* Screenshot diff thumbnails (before → after) — only shown when present */}
+      {entry.screenshotDiff && (
+        <div
+          style={{
+            flex: "none",
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+          }}
+        >
+          {entry.screenshotDiff.before && (
+            <>
+              <img
+                src={entry.screenshotDiff.before}
+                alt="Before"
+                width={64}
+                height={48}
+                style={{
+                  borderRadius: 6,
+                  border: "1px solid var(--border-subtle)",
+                  objectFit: "cover",
+                  display: "block",
+                  opacity: 0.7,
+                }}
+              />
+              {/* Arrow between before and after */}
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="var(--text-tertiary)"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                style={{ flex: "none" }}
+              >
+                <path d="M5 12h14M13 6l6 6-6 6" />
+              </svg>
+            </>
+          )}
+          <img
+            src={entry.screenshotDiff.after}
+            alt="After"
+            width={64}
+            height={48}
+            style={{
+              borderRadius: 6,
+              border: `1px solid ${high ? "var(--severity-high)" : "var(--border-subtle)"}`,
+              objectFit: "cover",
+              display: "block",
+            }}
+          />
+        </div>
+      )}
+
       {/* Jump to Updated Doc button */}
       <Link
         href={`/docs/${entry.docId}`}

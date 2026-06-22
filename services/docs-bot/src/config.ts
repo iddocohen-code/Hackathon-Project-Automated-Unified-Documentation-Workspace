@@ -7,6 +7,7 @@ import { z } from 'zod';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, '../../..');
 const defaultDocsContentDir = path.resolve(repoRoot, 'apps/surf-console/content/docs');
+const defaultScreenshotsPublicDir = path.resolve(repoRoot, 'apps/surf-console/public/docs-screenshots');
 
 const configSchema = z.object({
   schedulerMode: z
@@ -21,6 +22,10 @@ const configSchema = z.object({
   docsContentDir: z.preprocess(
     (v) => (v === '' ? undefined : v),
     z.string().default(defaultDocsContentDir),
+  ),
+  screenshotsPublicDir: z.preprocess(
+    (v) => (v === '' ? undefined : v),
+    z.string().default(defaultScreenshotsPublicDir),
   ),
   webhookSecret: z
     .string()
@@ -38,6 +43,7 @@ export function loadConfig(): Config {
     schedulerMode: process.env['SCHEDULER_MODE'],
     surfConsoleUrl: process.env['SURF_CONSOLE_URL'],
     docsContentDir: process.env['DOCS_CONTENT_DIR'],
+    screenshotsPublicDir: process.env['SCREENSHOTS_PUBLIC_DIR'],
     webhookSecret: process.env['GITHUB_WEBHOOK_SECRET'],
     port: process.env['PORT'],
   });
