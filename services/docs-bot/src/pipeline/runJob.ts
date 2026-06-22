@@ -27,6 +27,7 @@ import { visionCheck } from '../claude/visionCheck.js';
 import { writeDoc } from '../claude/writeDoc.js';
 import { publish } from '../publish/publisher.js';
 import type { CommitFn } from '../publish/publisher.js';
+import { notifier } from '../events/notifier.js';
 
 // ---------------------------------------------------------------------------
 // Narration helper — these are the on-stage demo console lines (spec §10)
@@ -347,6 +348,7 @@ export function makeRunJob(deps: RunJobDeps) {
         screenshotsPublicDir,
         ...(videoWebm !== undefined ? { videoBuffer: videoWebm } : {}),
         ...(commitFn ? { commitFn } : {}),
+        notify: async () => { notifier.emit(changeEntry); },
         ...(onIndexRebuild ? { onIndexRebuild } : {}),
       });
     } catch (err) {

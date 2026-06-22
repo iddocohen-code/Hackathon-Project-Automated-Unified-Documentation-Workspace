@@ -7,8 +7,10 @@
  *   { critical: ChangeEntry | null, show(entry): void, dismiss(): void }
  *
  * Plan 1: local/manual trigger only (?demoToast=1 query param on mount).
- * Plan 3 will call show() from an EventSource/SSE handler — the seam is clean.
- * NO SSE / fetch / polling here.
+ * Plan 3: live SSE subscription via EventSource when NEXT_PUBLIC_BOT_URL is set.
+ *   - onmessage → parse ChangeEntry → show() if severity is 'critical' or 'high'
+ *   - onerror → silent (EventSource auto-reconnects)
+ *   - closes on unmount
  */
 
 import React, { createContext, useContext, useState, useEffect } from "react";
@@ -44,6 +46,9 @@ const DEMO_ENTRY: ChangeEntry = {
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
   const [critical, setCritical] = useState<ChangeEntry | null>(null);
 
+  const show = (entry: ChangeEntry) => setCritical(entry);
+  const dismiss = () => setCritical(null);
+
   /** Plan 1 local trigger: ?demoToast=1 on mount shows the demo entry. */
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -53,8 +58,32 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     }
   }, []);
 
-  const show = (entry: ChangeEntry) => setCritical(entry);
-  const dismiss = () => setCritical(null);
+  /** Plan 3 SSE subscription — active only when NEXT_PUBLIC_BOT_URL is configured. */
+  useEffect(() => {
+    const botUrl = process.env.NEXT_PUBLIC_BOT_URL;
+    if (!botUrl) return;
+
+    const es = new EventSource(`${botUrl}/events`);
+
+    es.onmessage = (event) => {
+      try {
+        const entry = JSON.parse(event.data as string) as ChangeEntry;
+        if (entry.severity === "critical" || entry.severity === "high") {
+          show(entry);
+        }
+      } catch {
+        // Silently ignore malformed frames
+      }
+    };
+
+    // Silent error handler — EventSource will auto-reconnect on its own
+    es.onerror = () => {};
+
+    return () => {
+      es.close();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <NotificationContext.Provider value={{ critical, show, dismiss }}>

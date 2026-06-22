@@ -9,6 +9,7 @@ import type { Scheduler } from './pipeline/scheduler.js';
 import type { PullRequestEvent } from '@surf/types';
 import { answerQuery } from './rag/answer.js';
 import { getRetriever } from './rag/index-state.js';
+import { notifier } from './events/notifier.js';
 
 export interface BuildAppOptions {
   /**
@@ -60,6 +61,43 @@ export function buildApp(config?: Config, scheduler?: Scheduler, options?: Build
 
   app.get('/health', async () => {
     return { ok: true };
+  });
+
+  // GET /events — Server-Sent Events stream for live notifications.
+  //
+  // Each subscribed client receives:
+  //   - a "data: {...}\n\n" frame for every notifier.emit(entry) call
+  //   - a ": ping\n\n" heartbeat comment every 15 s so proxies keep the connection alive
+  //
+  // reply.hijack() tells Fastify not to send its own response; we drive the
+  // raw Node.js socket directly via reply.raw.
+  app.get('/events', (_request, reply) => {
+    const res = reply.raw;
+
+    reply.hijack();
+
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+    });
+    res.flushHeaders?.();
+
+    // Subscribe to notifier events
+    const unsubscribe = notifier.subscribe((entry) => {
+      res.write(`data: ${JSON.stringify(entry)}\n\n`);
+    });
+
+    // Periodic heartbeat: keeps the connection alive through proxies/load-balancers
+    const heartbeat = setInterval(() => {
+      res.write(': ping\n\n');
+    }, 15_000);
+
+    // Cleanup on client disconnect
+    res.on('close', () => {
+      unsubscribe();
+      clearInterval(heartbeat);
+    });
   });
 
   // POST /run-now — trigger the scheduler flush immediately.
