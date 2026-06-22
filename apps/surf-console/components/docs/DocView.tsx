@@ -399,104 +399,102 @@ export default function DocView({ doc }: DocViewProps) {
             </ReactMarkdown>
           </div>
 
-          {/* Embedded screenshot frame — ONLY when screenshots exist */}
+          {/* Screenshot gallery — renders ALL captured states, each with its own caption */}
           {doc.screenshots.length > 0 && (
-            <>
+            <div style={{ display: "flex", flexDirection: "column", gap: 20, marginTop: 24 }}>
               {doc.screenshots.map((screenshot, idx) => (
-                <div
-                  key={idx}
-                  style={{
-                    border: "1px solid var(--border-subtle)",
-                    borderRadius: 10,
-                    overflow: "hidden",
-                    marginBottom: 10,
-                  }}
-                >
-                  {/* Browser chrome bar */}
+                <div key={idx}>
                   <div
                     style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 7,
-                      padding: "8px 12px",
-                      background: "var(--bg-secondary)",
-                      borderBottom: "1px solid var(--border-subtle)",
+                      border: "1px solid var(--border-subtle)",
+                      borderRadius: 10,
+                      overflow: "hidden",
                     }}
                   >
-                    <span
+                    {/* Browser chrome bar */}
+                    <div
                       style={{
-                        width: 9,
-                        height: 9,
-                        borderRadius: "50%",
-                        background: "#FF5F57",
-                      }}
-                    />
-                    <span
-                      style={{
-                        width: 9,
-                        height: 9,
-                        borderRadius: "50%",
-                        background: "#FEBC2E",
-                      }}
-                    />
-                    <span
-                      style={{
-                        width: 9,
-                        height: 9,
-                        borderRadius: "50%",
-                        background: "#28C840",
-                      }}
-                    />
-                    <span
-                      style={{
-                        fontSize: 11,
-                        color: "var(--text-tertiary)",
-                        marginLeft: 8,
-                        fontFamily: "var(--font-mono-family)",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 7,
+                        padding: "8px 12px",
+                        background: "var(--bg-secondary)",
+                        borderBottom: "1px solid var(--border-subtle)",
                       }}
                     >
-                      {screenshot.path} · captured {formatCaptured(screenshot.capturedAt)}
-                    </span>
+                      <span
+                        style={{
+                          width: 9,
+                          height: 9,
+                          borderRadius: "50%",
+                          background: "#FF5F57",
+                        }}
+                      />
+                      <span
+                        style={{
+                          width: 9,
+                          height: 9,
+                          borderRadius: "50%",
+                          background: "#FEBC2E",
+                        }}
+                      />
+                      <span
+                        style={{
+                          width: 9,
+                          height: 9,
+                          borderRadius: "50%",
+                          background: "#28C840",
+                        }}
+                      />
+                      <span
+                        style={{
+                          fontSize: 11,
+                          color: "var(--text-tertiary)",
+                          marginLeft: 8,
+                          fontFamily: "var(--font-mono-family)",
+                        }}
+                      >
+                        {screenshot.path} · captured {formatCaptured(screenshot.capturedAt)}
+                      </span>
+                    </div>
+
+                    {/* Screenshot inner area */}
+                    <div
+                      style={{
+                        padding: 18,
+                        background: "#fbfcfe",
+                      }}
+                    >
+                      {/* screenshot.path is set by the docs-bot publisher; it must be a
+                          web-resolvable URL/public path when populated. */}
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={screenshot.path}
+                        alt={screenshot.alt}
+                        style={{
+                          display: "block",
+                          maxWidth: "100%",
+                          borderRadius: 8,
+                          border: "1px solid var(--border-subtle)",
+                        }}
+                      />
+                    </div>
                   </div>
 
-                  {/* Screenshot inner area */}
+                  {/* Per-screenshot caption */}
                   <div
                     style={{
-                      padding: 18,
-                      background: "#fbfcfe",
+                      fontSize: 12.5,
+                      color: "var(--text-tertiary)",
+                      marginTop: 8,
+                      fontStyle: "italic",
                     }}
                   >
-                    {/* screenshot.path is set by the docs-bot publisher (Plan 2); it must be a
-                        web-resolvable URL/public path when populated. No screenshots exist in before-state. */}
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={screenshot.path}
-                      alt={screenshot.alt}
-                      style={{
-                        display: "block",
-                        maxWidth: "100%",
-                        borderRadius: 8,
-                        border: "1px solid var(--border-subtle)",
-                      }}
-                    />
+                    {screenshot.alt}
                   </div>
                 </div>
               ))}
-
-              {/* Caption below the last screenshot */}
-              {doc.screenshots[doc.screenshots.length - 1] && (
-                <div
-                  style={{
-                    fontSize: 12.5,
-                    color: "var(--text-tertiary)",
-                    marginTop: 10,
-                    fontStyle: "italic",
-                  }}
-                >
-                  {doc.screenshots[doc.screenshots.length - 1]!.alt}
-                </div>
-              )}
-            </>
+            </div>
           )}
         </div>
       </div>

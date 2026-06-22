@@ -9,6 +9,7 @@ Given:
 2. A **DiffAnalysis** describing what structurally changed in the UI component and the human intent behind it
 3. **Context references** (Jira tickets, Slack discussions, Confluence pages) that explain the "why"
 4. **Screenshot metadata** (alt text and file path) for a captured screenshot of the updated UI
+5. **Captured UI states** (optional) — a list of UI states captured during the interaction flow (default state + one or more activated/revealed states)
 
 You must return a **DocDraft** object with exactly these fields:
 
@@ -33,6 +34,18 @@ When the `structuralChange` field describes a new UI element or action (e.g. a n
 - Provides any relevant operational context (e.g. irreversibility, preconditions)
 - Is placed logically within the existing procedure, keeping step numbering sequential
 
+### Interaction flow — document in prose when activated states are present
+
+When **Captured UI States** include one or more activated/revealed states (i.e., there are states beyond the default), you MUST document the interaction flow in prose. For each activated state:
+
+- Describe the operator action that triggers it (e.g., "Press the **Emergency Shark Siren** button")
+- Describe what the UI shows after the action (e.g., "an evacuation banner broadcasts across the zone and the panel status flips to **Siren active**")
+- Reference both the default state and the activated state by name so operators know what to expect before and after
+
+Example prose: "Press the red **Emergency Shark Siren** button → the evacuation banner broadcasts and the zone flips to *Siren active*."
+
+Weave this flow description into the relevant `## Step N` section — do not create a separate section solely for the states.
+
 ### Prose only — NO inline images
 
 **Do NOT emit any markdown image syntax.** This means:
@@ -41,6 +54,8 @@ When the `structuralChange` field describes a new UI element or action (e.g. a n
 - The screenshot is displayed separately by the Surf Console UI in a dedicated frame — it is NOT rendered from the body markdown
 
 If you want to reference the visual state of the console, describe it in prose (e.g., "The **Confirm Action** button now appears at the top of the panel.").
+
+**The NO-INLINE-IMAGE rule is absolute: even when Captured UI States are provided, never emit `![` in the body.** The portal renders all screenshots from `Doc.screenshots[]` — your job is prose only.
 
 ### Markdown constraints
 

@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import type { ContextRef, DocsManifest, Doc, Screenshot } from '@surf/types';
 import type { FilePatch } from '../git/diff.js';
 import type { DiffAnalysis } from './schemas.js';
+import type { CapturedStateMeta } from './writeDoc.js';
 
 // __dirname equivalent for ESM; prompts.ts lives at services/docs-bot/src/claude/
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -85,6 +86,12 @@ export interface WriterPromptInput {
   context: ContextRef[];
   /** Screenshot metadata (alt + path) for context — NOT to be inlined as markdown image */
   screenshotMeta: Pick<Screenshot, 'alt' | 'path'> | null;
+  /**
+   * Captured UI states (state slug + alt) from the multi-state capture pipeline.
+   * First entry is always the default state; subsequent entries are activated/revealed states.
+   * When provided, the writer should document the interaction flow in prose.
+   */
+  capturedStates?: CapturedStateMeta[];
 }
 
 /**
@@ -114,6 +121,17 @@ export async function buildWriterPrompt(input: WriterPromptInput): Promise<{
     ? '(no screenshot captured)'
     : `Alt text: "${input.screenshotMeta.alt}"\nFile path: ${input.screenshotMeta.path}\n(This screenshot is rendered separately by the Surf Console UI — do NOT inline it as a markdown image in the body.)`;
 
+  // Captured states section — only when multiple states were captured
+  const capturedStatesSection =
+    input.capturedStates == null || input.capturedStates.length === 0
+      ? null
+      : (() => {
+          const lines = input.capturedStates.map((s, i) =>
+            `- **${i === 0 ? 'Default state' : `Activated state ${i}`}** (\`${s.state}\`): ${s.alt}`,
+          );
+          return lines.join('\n');
+        })();
+
   const userContent = `## Existing Doc (v${input.existingDoc.version})
 
 **Doc ID:** ${input.existingDoc.id}
@@ -142,7 +160,15 @@ ${contextSection}
 ## Screenshot Metadata (for context only — do NOT inline as markdown image)
 
 ${screenshotSection}
+${capturedStatesSection != null ? `
+---
 
+## Captured UI States (interaction flow — describe in prose, do NOT inline as markdown images)
+
+The following UI states were captured. Use these to document the interaction flow in prose — describe what the operator does and what the UI shows at each stage:
+
+${capturedStatesSection}
+` : ''}
 ---
 
 Regenerate the documentation body to incorporate the structural change described above — add or revise the relevant step(s) to reflect it — while preserving the existing \`##\` step-heading structure, the doc's voice, and (per the screenshot note) emitting NO markdown image. Return a DocDraft object.`;

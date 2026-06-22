@@ -5,6 +5,14 @@ import { buildWriterPrompt } from './prompts.js';
 import type { ContextRef, Doc, Screenshot } from '@surf/types';
 import type { DiffAnalysis, DocDraft } from './schemas.js';
 
+/** A captured UI state (label + alt text) passed to the writer for prose description. */
+export interface CapturedStateMeta {
+  /** State slug, e.g. "default" or "emergency-shark-siren-active" */
+  state: string;
+  /** Human-readable alt text describing what is visible in this state */
+  alt: string;
+}
+
 export interface WriteDocInput {
   /** The existing Doc — id, title, bodyMarkdown, and version used for context */
   existingDoc: Pick<Doc, 'id' | 'title' | 'bodyMarkdown' | 'version'>;
@@ -14,6 +22,12 @@ export interface WriteDocInput {
   context: ContextRef[];
   /** Screenshot metadata (alt + path) — for context only, NOT inlined as markdown image */
   screenshotMeta: Pick<Screenshot, 'alt' | 'path'> | null;
+  /**
+   * Captured UI states (label + alt) from the multi-state capture pipeline.
+   * The first entry is always the default state; subsequent entries are activated/revealed states.
+   * When present, the writer documents the interaction flow in prose.
+   */
+  capturedStates?: CapturedStateMeta[];
 }
 
 /**

@@ -248,6 +248,7 @@ export function makeRunJob(deps: RunJobDeps) {
           alt: defaultState.alt,
           path: `/docs-screenshots/${diffAnalysis.docId}/screenshot-v${found.version + 1}-${defaultState.state}.png`,
         },
+        capturedStates: passingStates.map((s) => ({ state: s.state, alt: s.alt })),
       });
     } catch (err) {
       log(`[job=${jobId}] ABORT at writeDoc`, { error: String(err) });

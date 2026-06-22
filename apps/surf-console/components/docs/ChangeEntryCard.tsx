@@ -134,7 +134,7 @@ export default function ChangeEntryCard({ entry }: ChangeEntryCardProps) {
         )}
       </div>
 
-      {/* Screenshot diff thumbnails (before → after) — only shown when present */}
+      {/* Screenshot diff thumbnails — only shown when present */}
       {entry.screenshotDiff && (
         <div
           style={{
@@ -144,22 +144,34 @@ export default function ChangeEntryCard({ entry }: ChangeEntryCardProps) {
             gap: 6,
           }}
         >
+          {/* When both before and after are present, render as default → activated pair */}
           {entry.screenshotDiff.before && (
             <>
-              <img
-                src={entry.screenshotDiff.before}
-                alt="Before"
-                width={64}
-                height={48}
-                style={{
-                  borderRadius: 6,
-                  border: "1px solid var(--border-subtle)",
-                  objectFit: "cover",
-                  display: "block",
-                  opacity: 0.7,
-                }}
-              />
-              {/* Arrow between before and after */}
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
+                <img
+                  src={entry.screenshotDiff.before}
+                  alt="Default state"
+                  width={64}
+                  height={48}
+                  style={{
+                    borderRadius: 6,
+                    border: "1px solid var(--border-subtle)",
+                    objectFit: "cover",
+                    display: "block",
+                    opacity: 0.7,
+                  }}
+                />
+                <span
+                  style={{
+                    fontSize: 10,
+                    color: "var(--text-tertiary)",
+                    fontWeight: 500,
+                  }}
+                >
+                  Default
+                </span>
+              </div>
+              {/* Arrow between default and activated */}
               <svg
                 width="14"
                 height="14"
@@ -173,20 +185,46 @@ export default function ChangeEntryCard({ entry }: ChangeEntryCardProps) {
               >
                 <path d="M5 12h14M13 6l6 6-6 6" />
               </svg>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
+                <img
+                  src={entry.screenshotDiff.after}
+                  alt="Activated state"
+                  width={64}
+                  height={48}
+                  style={{
+                    borderRadius: 6,
+                    border: `1px solid ${high ? "var(--severity-high)" : "var(--border-subtle)"}`,
+                    objectFit: "cover",
+                    display: "block",
+                  }}
+                />
+                <span
+                  style={{
+                    fontSize: 10,
+                    color: "var(--text-tertiary)",
+                    fontWeight: 500,
+                  }}
+                >
+                  Activated
+                </span>
+              </div>
             </>
           )}
-          <img
-            src={entry.screenshotDiff.after}
-            alt="After"
-            width={64}
-            height={48}
-            style={{
-              borderRadius: 6,
-              border: `1px solid ${high ? "var(--severity-high)" : "var(--border-subtle)"}`,
-              objectFit: "cover",
-              display: "block",
-            }}
-          />
+          {/* When only after is present, keep single thumbnail behavior */}
+          {!entry.screenshotDiff.before && (
+            <img
+              src={entry.screenshotDiff.after}
+              alt="After"
+              width={64}
+              height={48}
+              style={{
+                borderRadius: 6,
+                border: `1px solid ${high ? "var(--severity-high)" : "var(--border-subtle)"}`,
+                objectFit: "cover",
+                display: "block",
+              }}
+            />
+          )}
         </div>
       )}
 
