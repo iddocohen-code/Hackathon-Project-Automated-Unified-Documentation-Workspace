@@ -24,6 +24,20 @@
 - **Commits:** authored as the repo owner, **no Claude signature/co-author**. Engine-authored doc commits use a clear message (`docs: regenerate <docId> (v<n>) [skip-bot]`).
 - **Secrets:** `ANTHROPIC_API_KEY`, `GITHUB_WEBHOOK_SECRET` from env (`.env`, gitignored). Never commit keys.
 
+### As-built reconciliation (verified against the delivered Plan 1 frontend)
+
+These constraints replace earlier assumptions wherever they conflict — they are taken from the **actual** `apps/surf-console` on branch `plan-1-foundation`:
+
+- **Content contract = the real `apps/surf-console/lib/content.ts`** (`getManifest`/`getChangelog`/`getDoc`/`getCategories`/`getDocsByCategory`). The publisher MUST stay byte-compatible with how that reader works:
+  - `manifest.json` `Doc` entries carry **`bodyMarkdown: ""`** — a deliberate placeholder. The real body lives in `content/docs/<docId>/index.md` and `getDoc` injects it. The publisher writes the body to `index.md` and **keeps `bodyMarkdown: ""` in the manifest** (it must NOT inline the body).
+  - `DocCategory` gained an optional **`docCount?: number`** in Plan 1 (the folder tiles' claimed counts, e.g. `incident-protocols: 2`). When rewriting the manifest the publisher must **preserve `categories` verbatim (incl. `docCount`) and leave the other docs untouched** — it only replaces the regenerated doc's entry.
+  - `changelog.json` is a plain `ChangeEntry[]`. `getChangelog` re-sorts by `createdAt` **descending** in code, so the publisher prepends the new entry (and ordering is enforced by the reader regardless).
+  - The shark doc's `sourceComponent` is exactly `apps/surf-console/components/console/SharkMitigationCard.tsx` (the real file) — the diff analyzer keys off this to map the change → `shark-mitigation`.
+- **Screenshot serving (resolves the integration point Plan 1 flagged):** the portal renders screenshots with a bare `<img src={screenshot.path}>` (DocView) and provenance thumbnails in the What's New card — so paths must be **web-resolvable**. The publisher writes captured PNGs to **`apps/surf-console/public/docs-screenshots/<docId>/<file>.png`** and sets `Screenshot.path` (and `ChangeEntry.screenshotDiff.before/after`) to the web path **`/docs-screenshots/<docId>/<file>.png`** (Next serves `public/` at the site root). This directory is **outside** the watched UI globs, so writing it never re-triggers the bot (loop-safe alongside `content/docs/**`).
+- **The demo runs the portal in `next dev`** (`pnpm --filter surf-console dev`): server components re-read `content/docs` per request, so a publish appears on browser refresh. (A static `next build` would SSG the docs and need a rebuild/ISR — out of scope for the live demo.)
+- **Plan 1 is merged to `main`** before the live demo; the bot watches `main`. (Plan 1 currently sits on the `plan-1-foundation` branch, held for review.)
+- **Tests use `vitest`** (matches `apps/surf-console`), invoked via the package `test` script.
+
 ---
 
 ## File Structure (decomposition — locked here)
@@ -68,6 +82,17 @@ services/docs-bot/
 ```
 
 **Boundary rationale:** each stage is one file behind one interface, so it's unit-testable in isolation and swappable (instant vs throttled scheduler; fixture vs real context; Playwright vs Computer Use capture). `publisher.ts` is the only writer of `content/docs` — it must stay shape-compatible with Plan 1's `lib/content.ts`.
+
+### Frontend integration deltas (small `apps/surf-console` edits this plan introduces)
+
+The engine's richer output must be *visible* in the as-built portal. These four additive frontend changes are owned by Plan 2 — none touch `@surf/types` or `lib/content.ts`:
+
+1. **Shark card after-state** — the demo PR adds the red **Emergency Shark Siren** button + a `triggerSiren` handler (and the siren-active banner / zone-status flip) to `components/console/SharkMitigationCard.tsx` (Task 11). This is the change the bot detects.
+2. **Capture selector hook** — add `data-doc-target="shark-mitigation"` to the Shark card root so `PlaywrightCapture` scopes to the panel deterministically (Task 8). The before-state card currently has no id/test hook.
+3. **`ChangeEntryCard` renders `screenshotDiff`** — Plan 1 built that card for the two *info* entries, which had no screenshots, so it renders none. It must render the before/after thumbnail pair when `entry.screenshotDiff` is present (frontend-design-spec §5.4). Small additive change, wired in Task 10's integration step.
+4. **Screenshots served from `public/docs-screenshots/`** (see As-built reconciliation) — so DocView's `<img>` and the What's New thumbnails resolve.
+
+> **Observed Plan 1 seed nit (not blocking):** three docs carry placeholder `sourceComponent` values that don't match real files (`WaveHeightChart.tsx`, `StormSurgeCard.tsx`) — only `shark-mitigation` → `SharkMitigationCard.tsx` is real, which is all the demo path needs. Optionally tidy the seed when Plan 1 merges; the engine does not depend on the others.
 
 ---
 
@@ -202,11 +227,13 @@ services/docs-bot/
 **Interfaces:**
 - Consumes: `DiffAnalysis.targetRoute`, `Config.surfConsoleUrl`.
 - Produces: `interface ScreenshotCapture { capture(target: { route: string; selector?: string }): Promise<{ pngBuffer: Buffer; alt: string }> }`; `PlaywrightCapture` (launches chromium, navigates to `surfConsoleUrl + route`, optionally scopes to `selector`, screenshots); `visionCheck(pngBuffer, claimedChange): Promise<VisionVerdict>` where `VisionVerdict = { showsChange: boolean; note: string }` — Sonnet 4.6 with the screenshot as a base64 `image` block + a text question, via `messages.parse` + `zodOutputFormat`.
+- **Capture target (as-built):** the Shark panel lives on the dashboard route `/` (not a dedicated route). So for `shark-mitigation`, `route = "/"` and `selector = '[data-doc-target="shark-mitigation"]'`. The returned `pngBuffer` is NOT written here — the publisher (Task 10) writes it to `apps/surf-console/public/docs-screenshots/<docId>/…` and sets the web path.
 
-- [ ] **Step 1:** Add `playwright` + run `pnpm --filter @surf/docs-bot exec playwright install chromium`. Implement `PlaywrightCapture` and `visionCheck`.
-- [ ] **Step 2: Verify capture (integration).** With `apps/surf-console` running (`pnpm --filter surf-console dev`) **on the after-state** (siren present), a script captures `/` scoped to the Shark panel selector → writes a PNG locally; confirm the file opens and shows the siren button.
-- [ ] **Step 3: Verify vision check (integration, needs key).** Feed that PNG + claim "an Emergency Shark Siren button was added" → `showsChange === true`. Feed a before-state PNG → `showsChange === false`.
-- [ ] **Step 4: Commit.** `git add services/docs-bot && git commit -m "feat(bot): Playwright capture + Claude vision check (Sonnet 4.6)"`
+- [ ] **Step 1 (frontend hook):** Add `data-doc-target="shark-mitigation"` to the root `<div>` of `components/console/SharkMitigationCard.tsx` so Playwright can scope to the panel deterministically (the before-state card has no id/test hook). Commit this tiny edit to `apps/surf-console` separately or fold into the demo branch — but the attribute must exist on `main` so capture works pre-merge too; prefer committing it to `apps/surf-console` on `main`.
+- [ ] **Step 2:** Add `playwright` + run `pnpm --filter @surf/docs-bot exec playwright install chromium`. Implement `PlaywrightCapture` and `visionCheck`.
+- [ ] **Step 3: Verify capture (integration).** With `apps/surf-console` running (`pnpm --filter surf-console dev`) **on the after-state** (siren present), a script captures `route:"/"`, `selector:'[data-doc-target="shark-mitigation"]'` → writes a PNG locally; confirm it opens and shows the siren button.
+- [ ] **Step 4: Verify vision check (integration, needs key).** Feed that PNG + claim "an Emergency Shark Siren button was added" → `showsChange === true`. Feed a before-state PNG → `showsChange === false`.
+- [ ] **Step 5: Commit.** `git add services/docs-bot apps/surf-console && git commit -m "feat(bot): Playwright capture + Claude vision check (Sonnet 4.6)"` (includes the `data-doc-target` hook)
 
 ---
 
@@ -216,10 +243,14 @@ services/docs-bot/
 
 **Interfaces:**
 - Consumes: the existing `Doc` (from manifest), `DiffAnalysis`, `ContextRef[]`, the captured `Screenshot` metadata.
-- Produces: `writeDoc(input): Promise<DocDraft>` where `DocDraft = { bodyMarkdown: string; changeSummary: ChangeSummary; title: string }` — Opus 4.8 via `messages.parse` + `zodOutputFormat(DocDraftSchema)`, prompted with the Upwind style guide (from `prompts.ts`), instructed to embed the screenshot via a markdown image reference and weave in the Jira/Slack intent. Caller assembles the full `Doc` (bump `version`, set `updatedAt`, attach `screenshots`, set `lastChange = changeSummary`).
+- Produces: `writeDoc(input): Promise<DocDraft>` where `DocDraft = { bodyMarkdown: string; changeSummary: ChangeSummary; title: string }` — Opus 4.8 via `messages.parse` + `zodOutputFormat(DocDraftSchema)`, prompted with the Upwind style guide (from `prompts.ts`) and the existing v3 body, instructed to regenerate the body and weave in the Jira/Slack intent. Caller assembles the full `Doc` (bump `version` → 4, set `updatedAt`, attach `screenshots`, set `lastChange = changeSummary`).
+- **As-built rendering facts the prompt must respect:**
+  - The existing v3 body uses `##`-heading steps (e.g. `## Step 1: Confirm the sighting`). The writer keeps that markdown shape and **adds an Emergency Shark Siren step** (e.g. a new `## Step …: Sound the Emergency Shark Siren` describing pressing the red button) — the doc's narrative steps are independent of the console card's button labels.
+  - **Do NOT inline a markdown image.** Plan 1's DocView renders the screenshot in a dedicated browser-chrome frame fed by `Doc.screenshots[]` (placed after the rendered body), not from a markdown `![]()`. A markdown image with a `content/docs` path would not resolve and would double-render. The writer produces prose only; the publisher attaches `screenshots` (web path) to the `Doc`.
+  - Markdown is rendered with `react-markdown` + `remark-gfm` (no raw HTML, no slug anchors yet — anchors arrive in Plan 3).
 
 - [ ] **Step 1:** Implement `DocDraftSchema` + `writeDoc.ts` (reuse the style-guide string from Task 7).
-- [ ] **Step 2: Verify (integration, needs key).** Feed the v3 shark doc + the demo `DiffAnalysis` + fixtures + screenshot meta → assert `bodyMarkdown` contains "Emergency Shark Siren" and a step about pressing it, references the screenshot path, and reads in Upwind's tone; `changeSummary.intentSource` cites Jira/Slack.
+- [ ] **Step 2: Verify (integration, needs key).** Feed the v3 shark doc body + the demo `DiffAnalysis` + fixtures → assert `bodyMarkdown` contains "Emergency Shark Siren" and a `##` step about pressing it, keeps the existing `##`-heading step shape, contains **no** inline markdown image, and reads in Upwind's tone; `changeSummary.intentSource` cites Jira/Slack.
 - [ ] **Step 3: Verify build.** Run: `pnpm --filter @surf/docs-bot build`. Expected: compiles.
 - [ ] **Step 4: Commit.** `git add services/docs-bot && git commit -m "feat(bot): Claude doc writer (Opus 4.8, Upwind tone)"`
 
@@ -227,21 +258,31 @@ services/docs-bot/
 
 ## Task 10: Publisher (write files, update manifest+changelog, commit)
 
-**Files:** Create `src/publish/publisher.ts`, `tests/publisher.test.ts`.
+**Files:** Create `src/publish/publisher.ts`, `tests/publisher.test.ts`; modify `apps/surf-console/components/docs/ChangeEntryCard.tsx` (render `screenshotDiff`). Config adds `docsContentDir` (default `apps/surf-console/content/docs`) and `screenshotsPublicDir` (default `apps/surf-console/public/docs-screenshots`).
 
 **Interfaces:**
-- Consumes: assembled `Doc`, `Screenshot` PNG buffer, `ChangeEntry`; `Config.docsContentDir`.
-- Produces: `publish(input): Promise<void>` — writes `content/docs/<docId>/index.md` + the screenshot PNG, updates `manifest.json` (replace the doc, keep ordering) and `changelog.json` (prepend the new `ChangeEntry`), then `git add` + commit with `docs: regenerate <docId> (v<n>) [skip-bot]`. Transaction-like: write to temp + rename, and only commit after all writes succeed. Exposes a `notify` hook (no-op in Plan 2; wired in Plan 3).
+- Consumes: assembled `Doc`, the `Screenshot` PNG buffer, the new `ChangeEntry`; `Config.docsContentDir` + `Config.screenshotsPublicDir`.
+- Produces: `publish(input): Promise<void>` — performs, transaction-like (write to temp + rename; only `git add`/commit after all writes succeed):
+  1. Writes the regenerated body to **`<docsContentDir>/<docId>/index.md`** (markdown only).
+  2. Writes the PNG to **`<screenshotsPublicDir>/<docId>/<file>.png`** and uses the web path **`/docs-screenshots/<docId>/<file>.png`** for `Screenshot.path` + `ChangeEntry.screenshotDiff.after`.
+  3. Updates **`<docsContentDir>/manifest.json`**: replaces ONLY the regenerated doc's entry (set `version`, `updatedAt`, `screenshots: [{path: "/docs-screenshots/…", alt, capturedAt, targetSelector}]`, `lastChange`, and keep **`bodyMarkdown: ""`** — the body lives in `index.md`). **Preserve `categories` verbatim (incl. `docCount`) and all other `docs` unchanged.**
+  4. Updates **`<docsContentDir>/changelog.json`**: prepends the new `ChangeEntry` (severity `critical`, `prUrl`, `contextRefs`, `screenshotDiff`).
+  5. `git add` (the `content/docs` paths + the `public/docs-screenshots` PNG) + commit `docs: regenerate <docId> (v<n>) [skip-bot]`.
+  Exposes a `notify` hook (no-op in Plan 2; wired in Plan 3) and an index-rebuild hook (no-op in Plan 2; wired in Plan 3).
+- **`@surf/types` shape compatibility is the hard contract** — what `publish` writes must be exactly what `apps/surf-console/lib/content.ts` reads: `getManifest()` (categories incl. `docCount` + docs with `bodyMarkdown:""`), `getDoc()` (injects body from `index.md`), `getChangelog()` (re-sorts by `createdAt` desc).
 
-- [ ] **Step 1: Write failing tests.** `tests/publisher.test.ts` (point `docsContentDir` at a temp dir seeded with a v3 manifest/changelog):
-  - after `publish`, `manifest.json` parses to a `DocsManifest` whose `shark-mitigation` doc is `version 4` with a non-empty `screenshots` array;
-  - `changelog.json` first entry is the new `critical` `ChangeEntry` with the provenance `contextRefs`;
-  - the markdown file and PNG exist on disk;
-  - **`lib/content.ts`'s `getDoc('shark-mitigation')` shape is satisfiable** — assert the written manifest validates against the `@surf/types` `Doc` shape (the contract check that keeps Plan 1's reader working).
+- [ ] **Step 1: Write failing tests.** `tests/publisher.test.ts` (point `docsContentDir` at a temp dir seeded with a **copy of the real before-state** `manifest.json` + `changelog.json` from `apps/surf-console/content/docs`, and `screenshotsPublicDir` at a temp dir):
+  - after `publish`, `manifest.json` parses to a `DocsManifest` whose `shark-mitigation` doc is `version 4`, has a non-empty `screenshots` array whose `path` starts `"/docs-screenshots/"`, and **still has `bodyMarkdown === ""`** (body not inlined);
+  - the manifest's `categories` are unchanged (still 4, each retaining its `docCount`) and the other three docs are untouched;
+  - `<docId>/index.md` exists on disk and contains the regenerated body ("Emergency Shark Siren");
+  - the PNG exists under `screenshotsPublicDir/shark-mitigation/`;
+  - `changelog.json` **first** entry (post-sort) is the new `critical` `ChangeEntry` with the provenance `contextRefs` and a `screenshotDiff.after` web path; the two pre-existing `info` entries remain;
+  - **contract check:** the written manifest doc validates against the `@surf/types` `Doc` shape, and a `getDoc`-equivalent (manifest entry + injected `index.md`) yields a v4 `Doc` with non-empty `bodyMarkdown` — keeping Plan 1's reader working.
 - [ ] **Step 2: Run — must fail.** Run: `pnpm --filter @surf/docs-bot test`. Expected: FAIL.
 - [ ] **Step 3:** Implement `publisher.ts`.
 - [ ] **Step 4: Run — must pass.** Run: `pnpm --filter @surf/docs-bot test`. Expected: PASS.
-- [ ] **Step 5: Commit.** `git add services/docs-bot && git commit -m "feat(bot): publisher writes docs + manifest/changelog + commit"`
+- [ ] **Step 5 (frontend integration):** Update `apps/surf-console/components/docs/ChangeEntryCard.tsx` to render `entry.screenshotDiff` — a before/after thumbnail pair (`<img>` using the web paths) when present (frontend-design-spec §5.4). The two before-state info entries have no `screenshotDiff`, so they're unaffected; the siren entry shows the pair. Verify `pnpm --filter surf-console build` passes.
+- [ ] **Step 6: Commit.** `git add services/docs-bot apps/surf-console && git commit -m "feat(bot): publisher writes docs + manifest/changelog + commit; render screenshotDiff"`
 
 ---
 
@@ -254,7 +295,12 @@ services/docs-bot/
 - Produces: `runJob(event: PullRequestEvent): Promise<void>` = `getDiff → aggregateContext → analyzeDiff → capture → visionCheck (halt + log if !showsChange) → writeDoc → assemble Doc + ChangeEntry → publish`. Each stage logs a visible progress line (`PR detected → relevant`, `Pulling context…`, `Analyzing diff…`, `Capturing UI…`, `Vision check ✓`, `Writing doc…`, `Publishing`) — these are the on-stage narration from the demo script (architecture spec §10).
 
 - [ ] **Step 1:** Implement `runJob.ts` with typed-error handling per stage (a failure logs the job id + stage and aborts that job only; manifest untouched on mid-pipeline failure). Wire it into `index.ts` via `makeScheduler`.
-- [ ] **Step 2: Prepare the demo change.** On a branch `demo/shark-siren`, edit `apps/surf-console/components/console/SharkMitigationCard.tsx` to add the red **Emergency Shark Siren** button (the after-state — reproduce `design-mock` lines 290 + the `sirenActive` banner 273–278 and zone-status flip). Commit on the branch; do **not** merge yet. The PR body references `SURF-142`.
+- [ ] **Step 2: Prepare the demo change (against the AS-BUILT card).** On a branch `demo/shark-siren`, edit `apps/surf-console/components/console/SharkMitigationCard.tsx`. The current file is a **stateless** function component with a header chip + "Zone status: Clear" inline row + 4 steps + an action-button row (`Raise flag`, `Notify command`) that already has `flexWrap`, `marginTop:18`, `paddingTop:16`, `borderTop` — designed to accept one more button. The after-state adds:
+  - `"use client"` at the top; `import { useState } from "react"`; `const [sirenActive, setSirenActive] = useState(false)` and `const triggerSiren = () => setSirenActive(true)` (the `triggerSiren()` symbol the diff analyzer keys on).
+  - A third button in the existing action row: **Emergency Shark Siren** — same `height:34` / `padding:0 13px` / `gap:7` / `borderRadius:4` as its siblings, styled critical (`background: var(--severity-high)`, `color:#fff`, no border), an `<Icon>` (add a `siren`/`alert-triangle` glyph to `components/ui/Icon.tsx` if absent), `onClick={triggerSiren}`.
+  - When `sirenActive`, render a siren-active banner (red `--severity-high-bg` / `--severity-high`, an ⚠️ icon, "Evacuation siren broadcasting across all zones") and flip the inline zone-status pill from **Clear** (`--severity-safe`) to an alert state (`--severity-high`).
+  - Keep the `data-doc-target="shark-mitigation"` attribute on the root (from Task 8).
+  Commit on the branch; do **not** merge yet. The PR body references `SURF-142`. (The path `components/console/**` matches the watched glob → the merge fires the bot.)
 - [ ] **Step 3: Verify end-to-end locally (manual, needs key).** With `surf-console` running, set `SCHEDULER_MODE=instant`; POST a synthesized merge payload for the `demo/shark-siren` change to `/webhook` (or call `/run-now`). Expected: the pipeline runs, logs each stage, and `content/docs/shark-mitigation/` updates to v4 with a fresh screenshot + a critical changelog entry; reloading `/docs/shark-mitigation` in the portal shows the new doc.
 - [ ] **Step 4: Commit (engine only).** `git add services/docs-bot && git commit -m "feat(bot): pipeline orchestration end-to-end"` (keep the `demo/shark-siren` branch unmerged for the live demo).
 
@@ -277,5 +323,7 @@ services/docs-bot/
 **Placeholder scan:** none — Claude/Playwright stages give interface + behavior + integration-verification; pure stages are test-first with concrete assertions; design reproduction cites exact `design-mock` line ranges.
 
 **Type consistency:** `PullRequestEvent`/`Doc`/`ChangeEntry`/`ContextRef`/`Severity` are the `@surf/types` names throughout; `DiffAnalysis`/`DocDraft`/`VisionVerdict` are engine-internal zod schemas defined in `schemas.ts` and consumed by `runJob`. Publisher output is contract-checked against `@surf/types` in Task 10's test (keeps Plan 1's `lib/content.ts` valid).
+
+**As-built reconciliation (this revision):** verified against the delivered `apps/surf-console` (branch `plan-1-foundation`). Publisher now matches the real `lib/content.ts` exactly — manifest `bodyMarkdown:""` placeholder + body in `index.md`, preserved `categories`/`docCount`, prepended changelog. Screenshots are written to `public/docs-screenshots/` with web paths (resolves Plan 1's open `<img src>` integration point; loop-safe). The demo PR edits the *actual* (stateless) Shark card structure, adding `triggerSiren` + the red button + siren banner. Four small additive frontend deltas are owned by this plan (siren after-state, `data-doc-target` capture hook, `ChangeEntryCard` `screenshotDiff` rendering, `public/` screenshots) — none touch `@surf/types` or `lib/content.ts`. Portal runs in `next dev` for live pickup.
 
 **Scope:** Plan 2 produces a working engine that turns a real PR into a regenerated, committed doc — demoable on its own. RAG and demo safety nets are Plan 3.
