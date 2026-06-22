@@ -43,7 +43,9 @@ export class PlaywrightCapture implements ScreenshotCapture {
     const browser = await chromium.launch({ headless: true });
     try {
       const page = await browser.newPage();
-      await page.goto(url, { waitUntil: 'networkidle' });
+      // Use 'domcontentloaded' instead of 'networkidle': next dev's HMR websocket
+      // keeps the network perpetually busy, causing 'networkidle' to hang ~30s.
+      await page.goto(url, { waitUntil: 'domcontentloaded' });
 
       let rawBuffer: Buffer;
       let alt: string;
@@ -55,6 +57,9 @@ export class PlaywrightCapture implements ScreenshotCapture {
         rawBuffer = Buffer.from(bytes);
         alt = `Screenshot of element '${target.selector}' at ${url}`;
       } else {
+        // No element to wait for; ensure the page has at least fully loaded
+        // before taking the screenshot (avoids capturing a blank/partial render).
+        await page.waitForLoadState('load');
         const bytes = await page.screenshot({ type: 'png', fullPage: false });
         rawBuffer = Buffer.from(bytes);
         alt = `Full-page screenshot of ${url}`;
