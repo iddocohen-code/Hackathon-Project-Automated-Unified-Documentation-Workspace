@@ -12,8 +12,6 @@
  *     embedded screenshot browser-chrome frame with screenshot + caption.
  */
 
-"use client";
-
 import React from "react";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
@@ -326,13 +324,9 @@ export default function DocView({ doc }: DocViewProps) {
                 ol: ({ children }) => (
                   <ol
                     style={{
-                      margin: "0 0 24px",
-                      paddingLeft: 0,
-                      listStyle: "none",
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: 12,
-                      counterReset: "step-counter",
+                      margin: "0 0 22px",
+                      paddingLeft: 28,
+                      listStyle: "decimal",
                     }}
                   >
                     {children}
@@ -341,39 +335,26 @@ export default function DocView({ doc }: DocViewProps) {
                 ul: ({ children }) => (
                   <ul
                     style={{
-                      margin: "0 0 20px",
-                      paddingLeft: 20,
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: 8,
+                      margin: "0 0 22px",
+                      paddingLeft: 24,
+                      listStyle: "disc",
                     }}
                   >
                     {children}
                   </ul>
                 ),
-                li: ({ children, ...props }) => {
-                  // Detect if inside an ordered list by checking parent node
-                  // We use a wrapper that handles both ol and ul li styling
-                  const isOrdered = (props as { ordered?: boolean }).ordered;
-                  if (isOrdered) {
-                    return (
-                      <li
-                        style={{
-                          display: "flex",
-                          gap: 12,
-                          alignItems: "flex-start",
-                        }}
-                      >
-                        {children}
-                      </li>
-                    );
-                  }
-                  return (
-                    <li style={{ fontSize: 15, lineHeight: 1.55, color: "var(--text-primary)" }}>
-                      {children}
-                    </li>
-                  );
-                },
+                li: ({ children }) => (
+                  <li
+                    style={{
+                      fontSize: 15,
+                      lineHeight: 1.65,
+                      color: "var(--text-primary)",
+                      marginBottom: 6,
+                    }}
+                  >
+                    {children}
+                  </li>
+                ),
                 strong: ({ children }) => (
                   <strong style={{ fontWeight: 600 }}>{children}</strong>
                 ),
@@ -485,6 +466,8 @@ export default function DocView({ doc }: DocViewProps) {
                       background: "#fbfcfe",
                     }}
                   >
+                    {/* screenshot.path is set by the docs-bot publisher (Plan 2); it must be a
+                        web-resolvable URL/public path when populated. No screenshots exist in before-state. */}
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={screenshot.path}
@@ -501,7 +484,7 @@ export default function DocView({ doc }: DocViewProps) {
               ))}
 
               {/* Caption below the last screenshot */}
-              {doc.screenshots.length > 0 && doc.screenshots[doc.screenshots.length - 1] && (
+              {doc.screenshots[doc.screenshots.length - 1] && (
                 <div
                   style={{
                     fontSize: 12.5,
