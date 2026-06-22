@@ -1,4 +1,6 @@
-import React from "react";
+"use client";
+
+import React, { useState } from "react";
 import Icon from "../ui/Icon";
 
 const steps = [
@@ -9,6 +11,9 @@ const steps = [
 ];
 
 export default function SharkMitigationCard() {
+  const [sirenActive, setSirenActive] = useState(false);
+  const triggerSiren = () => setSirenActive(true);
+
   return (
     <div data-doc-target="shark-mitigation" style={{ background: "var(--surface)", border: "1px solid var(--border-subtle)", borderRadius: 8, boxShadow: "var(--shadow-sm)", overflow: "hidden", display: "flex", flexDirection: "column" }}>
       {/* Header */}
@@ -19,16 +24,31 @@ export default function SharkMitigationCard() {
         <div style={{ fontSize: 14, fontWeight: 500 }}>Shark mitigation procedures</div>
       </div>
 
+      {/* Siren active banner */}
+      {sirenActive && (
+        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 16px", background: "var(--severity-high-bg)", color: "var(--severity-high)", fontSize: 13.5, fontWeight: 500 }}>
+          <Icon name="alert-triangle" size={16} />
+          Evacuation siren broadcasting across all zones
+        </div>
+      )}
+
       {/* Body */}
       <div style={{ padding: 16, display: "flex", flexDirection: "column", flex: 1 }}>
         {/* Zone status inline */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 14 }}>
           <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, color: "var(--text-secondary)" }}>
             Zone status:{" "}
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontWeight: 500, padding: "2px 9px", borderRadius: 50, background: "var(--severity-safe-bg)", color: "var(--severity-safe)" }}>
-              <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--severity-safe)" }} />
-              Clear
-            </span>
+            {sirenActive ? (
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontWeight: 500, padding: "2px 9px", borderRadius: 50, background: "var(--severity-high-bg)", color: "var(--severity-high)" }}>
+                <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--severity-high)" }} />
+                Siren active
+              </span>
+            ) : (
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontWeight: 500, padding: "2px 9px", borderRadius: 50, background: "var(--severity-safe-bg)", color: "var(--severity-safe)" }}>
+                <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--severity-safe)" }} />
+                Clear
+              </span>
+            )}
           </span>
           <span style={{ fontSize: 12, color: "var(--text-tertiary)" }}>Last drill: 3d ago</span>
         </div>
@@ -54,6 +74,13 @@ export default function SharkMitigationCard() {
           <button style={{ display: "inline-flex", alignItems: "center", gap: 7, height: 34, padding: "0 13px", background: "var(--surface)", color: "var(--text-primary)", border: "1px solid var(--border-primary)", borderRadius: 4, fontFamily: "inherit", fontSize: 13.5, fontWeight: 500, cursor: "pointer" }}>
             <Icon name="message-circle" size={14} />
             Notify command
+          </button>
+          <button
+            onClick={triggerSiren}
+            style={{ display: "inline-flex", alignItems: "center", gap: 7, height: 34, padding: "0 13px", background: "var(--severity-high)", color: "#fff", border: "none", borderRadius: 4, fontFamily: "inherit", fontSize: 13.5, fontWeight: 500, cursor: "pointer" }}
+          >
+            <Icon name="siren" size={14} />
+            Emergency Shark Siren
           </button>
         </div>
       </div>
