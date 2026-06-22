@@ -31,6 +31,7 @@ describe('REPLAY runJob (no Claude, no Playwright)', () => {
 
     const noopCommit = async () => {};
     const onIndexRebuild = vi.fn().mockResolvedValue(undefined);
+    const captureBackend = { capture: vi.fn(), captureStates: vi.fn() } as any;
 
     const runJob = makeRunJob({
       docsContentDir,
@@ -38,13 +39,17 @@ describe('REPLAY runJob (no Claude, no Playwright)', () => {
       repoRoot,
       surfConsoleUrl: 'http://localhost:3000',
       contextSources: [],
-      capture: { capture: vi.fn(), captureStates: vi.fn() } as any,
+      capture: captureBackend,
       commitFn: noopCommit,
       onIndexRebuild,
       replayMode: true,
     });
 
     await runJob(PR);
+
+    // 0. Playwright capture was NEVER called (no Claude/Playwright in replay path)
+    expect(captureBackend.captureStates).not.toHaveBeenCalled();
+    expect(captureBackend.capture).not.toHaveBeenCalled();
 
     // 1. onIndexRebuild fired
     expect(onIndexRebuild).toHaveBeenCalledOnce();

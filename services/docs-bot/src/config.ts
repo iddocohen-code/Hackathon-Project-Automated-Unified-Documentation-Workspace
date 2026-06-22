@@ -43,8 +43,8 @@ const configSchema = z.object({
     z.enum(['keyword', 'vector']).default('keyword'),
   ),
   replayMode: z.preprocess(
-    (v) => (v === '' ? undefined : v),
-    z.coerce.boolean().default(false),
+    (v) => (v === 'true' || v === '1' ? true : false),
+    z.boolean().default(false),
   ),
 });
 

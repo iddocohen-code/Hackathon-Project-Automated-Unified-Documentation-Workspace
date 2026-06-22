@@ -43,6 +43,7 @@ const runJob = makeRunJob({
   surfConsoleUrl: config.surfConsoleUrl,
   contextSources,
   capture: captureBackend,
+  replayMode: config.replayMode,
   // commitFn: undefined → publisher uses the real simpleGit commit
   // Rebuild the RAG index after each successful publish so /search stays current.
   onIndexRebuild: () => rebuildIndex(),

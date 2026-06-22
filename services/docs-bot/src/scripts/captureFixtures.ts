@@ -21,7 +21,7 @@
  */
 
 import 'dotenv/config';
-import { mkdtemp, cp, mkdir, readFile, writeFile, copyFile } from 'node:fs/promises';
+import { mkdtemp, cp, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -232,8 +232,7 @@ async function main(): Promise<void> {
   await writeFile(path.join(fixturesDir, 'shark-mitigation.v4.md'), bodyMd, 'utf-8');
   console.log('[captureFixtures] Wrote shark-mitigation.v4.md');
 
-  // PNG screenshots — find the written files in temp screenshots dir
-  const screenshotDocDir = path.join(screenshotsPublicDir, 'shark-mitigation');
+  // PNG screenshots — write directly from the in-memory buffers in publishScreenshots
 
   // Default screenshot
   const defaultShot = publishScreenshots.find((ps) =>
