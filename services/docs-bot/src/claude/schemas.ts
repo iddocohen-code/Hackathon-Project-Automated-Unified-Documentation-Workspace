@@ -22,3 +22,17 @@ export const DiffAnalysisSchema = z.object({
 });
 
 export type DiffAnalysis = z.infer<typeof DiffAnalysisSchema>;
+
+/**
+ * Structured output schema for the vision check.
+ * Claude Sonnet 4.6 returns this JSON object when asked whether a screenshot
+ * shows a claimed UI change.
+ */
+export const VisionVerdictSchema = z.object({
+  /** Whether the screenshot shows the claimed change */
+  showsChange: z.boolean().describe('true if the screenshot clearly shows the claimed change; false if the change is absent'),
+  /** One-line explanation of the reasoning */
+  note: z.string().describe('A concise one-line explanation of why showsChange is true or false'),
+});
+
+export type VisionVerdict = z.infer<typeof VisionVerdictSchema>;

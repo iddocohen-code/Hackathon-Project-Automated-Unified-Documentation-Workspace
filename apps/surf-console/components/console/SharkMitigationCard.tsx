@@ -10,7 +10,7 @@ const steps = [
 
 export default function SharkMitigationCard() {
   return (
-    <div style={{ background: "var(--surface)", border: "1px solid var(--border-subtle)", borderRadius: 8, boxShadow: "var(--shadow-sm)", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+    <div data-doc-target="shark-mitigation" style={{ background: "var(--surface)", border: "1px solid var(--border-subtle)", borderRadius: 8, boxShadow: "var(--shadow-sm)", overflow: "hidden", display: "flex", flexDirection: "column" }}>
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", gap: 9, padding: "14px 16px", borderBottom: "1px solid var(--border-subtle)" }}>
         <span style={{ display: "inline-flex", width: 26, height: 26, borderRadius: 6, background: "var(--severity-high-bg)", color: "var(--severity-high)", alignItems: "center", justifyContent: "center", flex: "none" }}>
