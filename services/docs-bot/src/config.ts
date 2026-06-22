@@ -10,23 +10,25 @@ const defaultDocsContentDir = path.resolve(repoRoot, 'apps/surf-console/content/
 
 const configSchema = z.object({
   schedulerMode: z
-    .enum(['instant', 'throttled'])
-    .default('instant'),
-  surfConsoleUrl: z
-    .string()
-    .url()
-    .default('http://localhost:3000'),
-  docsContentDir: z
-    .string()
-    .default(defaultDocsContentDir),
+    .preprocess(
+      (v) => (v === '' ? undefined : v),
+      z.enum(['instant', 'throttled']).default('instant'),
+    ),
+  surfConsoleUrl: z.preprocess(
+    (v) => (v === '' ? undefined : v),
+    z.string().url().default('http://localhost:3000'),
+  ),
+  docsContentDir: z.preprocess(
+    (v) => (v === '' ? undefined : v),
+    z.string().default(defaultDocsContentDir),
+  ),
   webhookSecret: z
     .string()
     .default(''),
-  port: z
-    .coerce.number()
-    .int()
-    .positive()
-    .default(4000),
+  port: z.preprocess(
+    (v) => (v === '' ? undefined : v),
+    z.coerce.number().int().positive().default(4000),
+  ),
 });
 
 export type Config = z.infer<typeof configSchema>;
