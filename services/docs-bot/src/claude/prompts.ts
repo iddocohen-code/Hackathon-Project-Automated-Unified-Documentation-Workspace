@@ -145,7 +145,7 @@ ${screenshotSection}
 
 ---
 
-Regenerate the documentation body incorporating the new UI change. Keep all existing \`##\` step headings and add the new Emergency Shark Siren step. Return a DocDraft object.`;
+Regenerate the documentation body to incorporate the structural change described above — add or revise the relevant step(s) to reflect it — while preserving the existing \`##\` step-heading structure, the doc's voice, and (per the screenshot note) emitting NO markdown image. Return a DocDraft object.`;
 
   return { system, userContent };
 }

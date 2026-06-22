@@ -25,13 +25,13 @@ The existing body uses `##`-prefixed step headings (e.g., `## Step 1: Confirm th
 - Add the new step introduced by the diff as a new `## Step N: …` heading in a logical position within the procedure
 - Keep step numbering sequential and consistent
 
-### New Step: Emergency Shark Siren
+### New Step
 
-If the diff introduces an Emergency Shark Siren button (`triggerSiren()`, `Emergency Shark Siren` label), you MUST add a new `## Step` describing:
-- When and why to press the red **Emergency Shark Siren** button
-- What `triggerSiren()` does (zone-wide broadcast, immediate evacuation signal)
-- The operational context: this is a one-press, irreversible action — use it only after confirming the sighting
-- Place this step logically in the procedure (e.g., after confirming the sighting and before or alongside clearing the water)
+When the `structuralChange` field describes a new UI element or action (e.g. a new button, field, or workflow step), you MUST add a new `## Step N: …` heading that:
+- Describes when and why to use the new UI element
+- Explains what the action does and its effect on the system
+- Provides any relevant operational context (e.g. irreversibility, preconditions)
+- Is placed logically within the existing procedure, keeping step numbering sequential
 
 ### Prose only — NO inline images
 
@@ -40,7 +40,7 @@ If the diff introduces an Emergency Shark Siren button (`triggerSiren()`, `Emerg
 - NO `![]()` of any kind
 - The screenshot is displayed separately by the Surf Console UI in a dedicated frame — it is NOT rendered from the body markdown
 
-If you want to reference the visual state of the console, describe it in prose (e.g., "The red **Emergency Shark Siren** button now appears at the top of the mitigation panel.").
+If you want to reference the visual state of the console, describe it in prose (e.g., "The **Confirm Action** button now appears at the top of the panel.").
 
 ### Markdown constraints
 
@@ -62,7 +62,7 @@ Follow the Upwind Documentation Style Guide:
 
 ## Change Summary Requirements
 
-- **`headline`**: Short, action-oriented, under 80 characters, no trailing period. Example: "Added Emergency Shark Siren one-press evacuation trigger"
+- **`headline`**: Short, action-oriented, under 80 characters, no trailing period. Example: "Added one-press evacuation trigger to mitigation panel"
 - **`detail`**: 1-3 sentences covering what changed and the operational reason. Cite the specific UI change and its safety rationale.
 - **`intentSource`**: Cite the Jira ticket and/or Slack channel from the context references. Format: `"SURF-142 (Jira), #surf-safety (Slack)"`. If both are present, include both.
 

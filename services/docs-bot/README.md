@@ -25,6 +25,7 @@ Copy `services/docs-bot/.env.example` to `services/docs-bot/.env` and fill in th
 | `SCHEDULER_MODE` | no | `instant` | `instant` (demo) or `throttled` (production, 30 s debounce). |
 | `SURF_CONSOLE_URL` | no | `http://localhost:3000` | Base URL of the running surf-console for Playwright screenshot capture. |
 | `DOCS_CONTENT_DIR` | no | `apps/surf-console/content/docs` | Absolute or repo-relative path to the docs content directory. |
+| `SCREENSHOTS_PUBLIC_DIR` | no | `apps/surf-console/public/docs-screenshots` | Absolute or repo-relative path for captured screenshot output served by surf-console. |
 | `PORT` | no | `4000` | Port for the bot HTTP server. |
 
 ## Running locally
