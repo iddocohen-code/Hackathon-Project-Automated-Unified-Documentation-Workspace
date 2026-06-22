@@ -13,6 +13,11 @@ export interface Scheduler {
   runNow(): Promise<void>;
 }
 
+/** Minimal logger interface so both schedulers can report errors. */
+export interface SchedulerLogger {
+  error: (...args: unknown[]) => void;
+}
+
 // ---------------------------------------------------------------------------
 // InstantScheduler — demo mode
 //
@@ -24,12 +29,17 @@ export interface Scheduler {
 
 export class InstantScheduler implements Scheduler {
   private readonly run: (event: PullRequestEvent) => Promise<void>;
+  private readonly logger: SchedulerLogger;
   /** Pending events keyed by prUrl — last write wins. */
   private pending: Map<string, PullRequestEvent> = new Map();
   private timer: ReturnType<typeof setTimeout> | null = null;
 
-  constructor(run: (event: PullRequestEvent) => Promise<void>) {
+  constructor(
+    run: (event: PullRequestEvent) => Promise<void>,
+    logger?: SchedulerLogger,
+  ) {
     this.run = run;
+    this.logger = logger ?? console;
   }
 
   enqueue(event: PullRequestEvent): void {
@@ -40,7 +50,9 @@ export class InstantScheduler implements Scheduler {
     if (this.timer === null) {
       this.timer = setTimeout(() => {
         this.timer = null;
-        void this.flush();
+        this.flush().catch((err: unknown) => {
+          this.logger.error(err, 'scheduler flush failed');
+        });
       }, 0);
     }
   }
@@ -82,6 +94,7 @@ export interface ThrottledSchedulerConfig {
 export class ThrottledScheduler implements Scheduler {
   private readonly run: (event: PullRequestEvent) => Promise<void>;
   private readonly debounceMs: number;
+  private readonly logger: SchedulerLogger;
   /** Pending events keyed by prUrl — last write wins. */
   private pending: Map<string, PullRequestEvent> = new Map();
   private timer: ReturnType<typeof setTimeout> | null = null;
@@ -89,9 +102,11 @@ export class ThrottledScheduler implements Scheduler {
   constructor(
     run: (event: PullRequestEvent) => Promise<void>,
     config: ThrottledSchedulerConfig,
+    logger?: SchedulerLogger,
   ) {
     this.run = run;
     this.debounceMs = config.debounceMs;
+    this.logger = logger ?? console;
   }
 
   enqueue(event: PullRequestEvent): void {
@@ -104,7 +119,11 @@ export class ThrottledScheduler implements Scheduler {
     }
     this.timer = setTimeout(() => {
       this.timer = null;
-      void this.stabilize().then(() => this.flush());
+      this.stabilize()
+        .then(() => this.flush())
+        .catch((err: unknown) => {
+          this.logger.error(err, 'scheduler flush failed');
+        });
     }, this.debounceMs);
   }
 
@@ -155,15 +174,20 @@ export interface SchedulerFactoryConfig {
  * @param run     - The pipeline callback. Injected here so the scheduler has
  *                  no import-time dependency on the pipeline (which isn't
  *                  implemented until Task 11).
+ * @param logger  - Optional logger for timer-path flush errors (e.g. app.log).
+ *                  Falls back to console if omitted.
  */
 export function makeScheduler(
   config: SchedulerFactoryConfig,
   run: (event: PullRequestEvent) => Promise<void>,
+  logger?: SchedulerLogger,
 ): Scheduler {
   if (config.schedulerMode === 'throttled') {
-    return new ThrottledScheduler(run, {
-      debounceMs: config.debounceMs ?? 30_000,
-    });
+    return new ThrottledScheduler(
+      run,
+      { debounceMs: config.debounceMs ?? 30_000 },
+      logger,
+    );
   }
-  return new InstantScheduler(run);
+  return new InstantScheduler(run, logger);
 }

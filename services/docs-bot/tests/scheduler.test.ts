@@ -70,6 +70,47 @@ describe('InstantScheduler', () => {
     expect(run).toHaveBeenCalledTimes(1);
     expect(run).toHaveBeenCalledWith(event);
   });
+
+  it('runs twice for two different PRs enqueued before flush', async () => {
+    const run = vi.fn().mockResolvedValue(undefined);
+    const scheduler = new InstantScheduler(run);
+
+    const eventA = makeEvent({ prUrl: 'https://github.com/org/repo/pull/1' });
+    const eventB = makeEvent({ prUrl: 'https://github.com/org/repo/pull/2' });
+
+    scheduler.enqueue(eventA);
+    scheduler.enqueue(eventB);
+    await vi.runAllTimersAsync();
+
+    expect(run).toHaveBeenCalledTimes(2);
+    const calledUrls = run.mock.calls.map((call: [PullRequestEvent]) => call[0].prUrl);
+    expect(calledUrls).toContain(eventA.prUrl);
+    expect(calledUrls).toContain(eventB.prUrl);
+  });
+
+  it('logs via injected logger when run rejects, does not throw from timer path, scheduler remains usable', async () => {
+    const error = new Error('pipeline boom');
+    const run = vi.fn()
+      .mockRejectedValueOnce(error)
+      .mockResolvedValue(undefined);
+    const logger = { error: vi.fn() };
+    const scheduler = new InstantScheduler(run, logger);
+
+    // First enqueue — run will reject; error should be logged, not thrown
+    scheduler.enqueue(makeEvent({ prUrl: 'https://github.com/org/repo/pull/1' }));
+    await vi.runAllTimersAsync();
+
+    expect(logger.error).toHaveBeenCalledTimes(1);
+    expect(logger.error).toHaveBeenCalledWith(error, 'scheduler flush failed');
+
+    // Scheduler must remain usable after the failure
+    const eventB = makeEvent({ prUrl: 'https://github.com/org/repo/pull/2' });
+    scheduler.enqueue(eventB);
+    await vi.runAllTimersAsync();
+
+    expect(run).toHaveBeenCalledTimes(2);
+    expect(run).toHaveBeenLastCalledWith(eventB);
+  });
 });
 
 // ---------------------------------------------------------------------------

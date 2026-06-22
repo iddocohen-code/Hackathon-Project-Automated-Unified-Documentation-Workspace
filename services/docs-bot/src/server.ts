@@ -14,11 +14,8 @@ export function buildApp(config?: Config, scheduler?: Scheduler) {
   // Scheduler setup
   //
   // A stub `run` callback is used until Task 11 wires the real pipeline.
-  // Note: changedPaths is currently always [] from toPullRequestEvent (the
-  // GitHub PR webhook payload doesn't include file paths). isRelevant([]) is
-  // always false, so scheduler.enqueue will rarely fire from the webhook until
-  // Task 5 populates changedPaths from the mergedSha. The wiring is correct
-  // and future-proof for when Task 5/11 are in place.
+  // app.log is passed as the scheduler logger so timer-path flush errors are
+  // visible in the Fastify log stream rather than silently swallowed.
   // ---------------------------------------------------------------------------
   const stubRun = async (event: PullRequestEvent): Promise<void> => {
     app.log.info({ prUrl: event.prUrl }, 'scheduler: stub run (pipeline not yet wired)');
@@ -31,6 +28,7 @@ export function buildApp(config?: Config, scheduler?: Scheduler) {
         debounceMs: 30_000,
       },
       stubRun,
+      app.log,
     );
 
   app.get('/health', async () => {
@@ -81,9 +79,7 @@ export function buildApp(config?: Config, scheduler?: Scheduler) {
 
     if (event !== null) {
       // Enqueue only if the changed paths are relevant (UI source files).
-      // changedPaths is [] until Task 5 populates it from mergedSha — so
-      // isRelevant([]) = false and this branch won't fire from the webhook
-      // until then. The wiring is intentionally correct for Task 5/11.
+      // changedPaths is [] until Task 5 populates it from mergedSha.
       if (isRelevant(event.changedPaths)) {
         activeScheduler.enqueue(event);
       }
