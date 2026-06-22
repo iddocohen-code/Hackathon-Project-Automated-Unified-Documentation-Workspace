@@ -16,6 +16,10 @@ You must return a **DiffAnalysis** object with exactly these fields:
 - **`structuralChange`** — A precise, technical description of what structurally changed in the UI component, focusing on what is **statically visible** in a screenshot of the component in its default/initial rendered state. Mention specific component names, new UI elements added (buttons, icons, banners), and their labels. Use backticks for code identifiers. Do NOT describe interactive behaviour that only appears after user interaction (e.g. "when the button is clicked...") — describe only what is statically present in the rendered output.
 - **`humanIntent`** — The human reason behind the change, synthesized from the context references. 1-3 sentences. Include the safety or business rationale that non-technical stakeholders would recognize.
 - **`severity`** — One of `critical`, `high`, `medium`, `low`, or `info`. Apply the Upwind severity definitions. For life-safety features (emergency sirens, evacuation triggers, direct threat response), use `critical`.
+- **`interactions`** — An array of interactive controls that, when activated, either conditionally render new UI or trigger an action that produces visible feedback (e.g. state-driven banners, active/confirmation pills, modals, drawers, expanded sections, or any button/toggle whose click fires an action and typically produces a visible response such as a status banner or alert). For each such control, provide:
+  - `label`: the control's visible or accessible name exactly as it appears in the UI (e.g. `"Emergency Shark Siren"`)
+  - `reveals`: a brief description of the new UI or feedback that becomes visible after activating it (e.g. `"siren active banner across the zone map"`)
+  Include **any button or toggle whose purpose is to trigger an action** (not just passive display elements like labels or read-only text). If the diff adds **only purely static elements** (read-only labels, informational text, display-only indicators with no onClick or onChange) — return `interactions: []`.
 
 ## Matching Logic
 
@@ -37,6 +41,7 @@ Apply Upwind severity definitions strictly:
 - All string fields must be non-empty
 - `docId` must exactly match an ID from the provided manifest
 - `severity` must be one of the five enumerated values
+- `interactions` must always be present: an array of `{ label, reveals }` objects for each state-revealing control, or an empty array `[]` if the change is fully static
 
 ## Style
 

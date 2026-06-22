@@ -10,6 +10,21 @@ import type { FilePatch } from '../src/git/diff.js';
 // Skip the entire suite when no API key is present
 const hasKey = Boolean(process.env['ANTHROPIC_API_KEY']);
 
+// A purely static diff: adds a read-only label with no interactive controls
+const STATIC_DIFF: FilePatch[] = [
+  {
+    path: 'apps/surf-console/components/console/WaveHeightChart.tsx',
+    patch: `--- a/apps/surf-console/components/console/WaveHeightChart.tsx
++++ b/apps/surf-console/components/console/WaveHeightChart.tsx
+@@ -3,6 +3,7 @@
+ export function WaveHeightChart() {
+   return (
+     <div className="wave-chart">
++      <span className="last-updated-label">Last updated: {new Date().toLocaleTimeString()}</span>
+       <h2>Wave Height</h2>`,
+  },
+];
+
 // The demo siren diff: adding an Emergency Shark Siren button to SharkMitigationCard
 const SIREN_DIFF: FilePatch[] = [
   {
@@ -117,6 +132,75 @@ describe.skipIf(!hasKey)('analyzeDiff (live, requires ANTHROPIC_API_KEY)', () =>
       expect(result.humanIntent.length).toBeGreaterThan(0);
     },
     // 60 second timeout for live API call with extended thinking
+    60_000,
+  );
+
+  it(
+    'siren diff: interactions includes Emergency Shark Siren entry',
+    async () => {
+      const context = await aggregateContext(PR, [
+        new FixtureJiraSource(),
+        new FixtureSlackSource(),
+        new FixtureConfluenceSource(),
+      ]);
+
+      const result = await analyzeDiff({
+        diff: SIREN_DIFF,
+        context,
+        existingDocs: MANIFEST,
+      });
+
+      // interactions must be an array
+      expect(Array.isArray(result.interactions)).toBe(true);
+
+      // Must include at least one entry for the Emergency Shark Siren button
+      const sirenEntry = result.interactions.find(
+        (i) => /Emergency Shark Siren/i.test(i.label),
+      );
+      expect(
+        sirenEntry,
+        `interactions should contain an entry with label matching /Emergency Shark Siren/i, got: ${JSON.stringify(result.interactions)}`,
+      ).toBeDefined();
+
+      // The reveals field must describe the activated siren state (banner, siren active, evacuation, broadcast, etc.)
+      expect(
+        /banner|siren active|siren|evacuation|broadcast/i.test(sirenEntry!.reveals),
+        `reveals should match /banner|siren active|siren|evacuation|broadcast/i, got: "${sirenEntry!.reveals}"`,
+      ).toBe(true);
+    },
+    60_000,
+  );
+
+  it(
+    'static-only diff: interactions is empty array',
+    async () => {
+      const staticPR: PullRequestEvent = {
+        prUrl: 'https://github.com/example/surf/pull/99',
+        mergedSha: 'def5678',
+        changedPaths: ['apps/surf-console/components/console/WaveHeightChart.tsx'],
+        title: 'chore: add last-updated timestamp label to wave height chart',
+        body: 'Minor cosmetic addition — shows last refresh time.',
+      };
+
+      const context = await aggregateContext(staticPR, [
+        new FixtureJiraSource(),
+        new FixtureSlackSource(),
+        new FixtureConfluenceSource(),
+      ]);
+
+      const result = await analyzeDiff({
+        diff: STATIC_DIFF,
+        context,
+        existingDocs: MANIFEST,
+      });
+
+      // interactions must be an empty array for a purely static change
+      expect(Array.isArray(result.interactions)).toBe(true);
+      expect(
+        result.interactions,
+        `interactions should be [] for a static-only diff, got: ${JSON.stringify(result.interactions)}`,
+      ).toHaveLength(0);
+    },
     60_000,
   );
 });
