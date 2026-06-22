@@ -185,29 +185,32 @@ export default function ChangeEntryCard({ entry }: ChangeEntryCardProps) {
               >
                 <path d="M5 12h14M13 6l6 6-6 6" />
               </svg>
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
-                <img
-                  src={entry.screenshotDiff.after}
-                  alt="Activated state"
-                  width={64}
-                  height={48}
-                  style={{
-                    borderRadius: 6,
-                    border: `1px solid ${high ? "var(--severity-high)" : "var(--border-subtle)"}`,
-                    objectFit: "cover",
-                    display: "block",
-                  }}
-                />
-                <span
-                  style={{
-                    fontSize: 10,
-                    color: "var(--text-tertiary)",
-                    fontWeight: 500,
-                  }}
-                >
-                  Activated
-                </span>
-              </div>
+              {/* Invariant: when `before` is present, `after` is always set (runJob.ts always populates both). */}
+              {entry.screenshotDiff.after && (
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
+                  <img
+                    src={entry.screenshotDiff.after}
+                    alt="Activated state"
+                    width={64}
+                    height={48}
+                    style={{
+                      borderRadius: 6,
+                      border: `1px solid ${high ? "var(--severity-high)" : "var(--border-subtle)"}`,
+                      objectFit: "cover",
+                      display: "block",
+                    }}
+                  />
+                  <span
+                    style={{
+                      fontSize: 10,
+                      color: "var(--text-tertiary)",
+                      fontWeight: 500,
+                    }}
+                  >
+                    Activated
+                  </span>
+                </div>
+              )}
             </>
           )}
           {/* When only after is present, keep single thumbnail behavior */}

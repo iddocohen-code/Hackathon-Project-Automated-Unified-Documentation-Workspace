@@ -68,6 +68,16 @@ describe.skipIf(!hasKey)('writeDoc (live, requires ANTHROPIC_API_KEY)', () => {
         diffAnalysis: SIREN_DIFF_ANALYSIS,
         context,
         screenshotMeta,
+        capturedStates: [
+          {
+            state: 'default',
+            alt: 'SharkMitigationCard showing the new Emergency Shark Siren red button at top of panel — default (pre-activation) state',
+          },
+          {
+            state: 'siren-active',
+            alt: 'SharkMitigationCard after pressing Emergency Shark Siren: evacuation banner displayed, siren active indicator visible, zone-wide broadcast confirmed',
+          },
+        ],
       });
 
       // Log the output so the CI / test runner captures it
@@ -116,7 +126,15 @@ describe.skipIf(!hasKey)('writeDoc (live, requires ANTHROPIC_API_KEY)', () => {
         `changeSummary.intentSource should reference Jira and/or Slack, got: "${draft.changeSummary.intentSource}"`,
       ).toBe(true);
 
-      // 6. All fields non-empty
+      // 6. bodyMarkdown documents the interaction flow (activated/siren state) — exercises capturedStates
+      const bodyLower = draft.bodyMarkdown.toLowerCase();
+      expect(
+        bodyLower.includes('siren') || bodyLower.includes('evacuat') || bodyLower.includes('active'),
+        `bodyMarkdown should contain interaction-flow prose referencing the activated state (siren/evacuat/active). ` +
+          `Excerpt: "${draft.bodyMarkdown.slice(0, 400)}"`,
+      ).toBe(true);
+
+      // 7. All fields non-empty (original assertion 6)
       expect(draft.bodyMarkdown.length).toBeGreaterThan(100);
       expect(draft.changeSummary.headline.length).toBeGreaterThan(0);
       expect(draft.changeSummary.detail.length).toBeGreaterThan(0);

@@ -141,6 +141,7 @@ describe.skipIf(!hasKey)('runJob interactive e2e (live, requires API key + porta
           alt: defaultState.alt,
           path: `/docs-screenshots/${SIREN_DIFF_ANALYSIS.docId}/screenshot-v${newVersion}-${defaultState.state}.png`,
         },
+        capturedStates: passingStates.map((s) => ({ state: s.state, alt: s.alt })),
       });
 
       // --- Stage 7: assemble multi-screenshot Doc + ChangeEntry ---

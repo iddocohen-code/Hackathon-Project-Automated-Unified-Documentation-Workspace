@@ -481,17 +481,19 @@ export default function DocView({ doc }: DocViewProps) {
                     </div>
                   </div>
 
-                  {/* Per-screenshot caption */}
-                  <div
-                    style={{
-                      fontSize: 12.5,
-                      color: "var(--text-tertiary)",
-                      marginTop: 8,
-                      fontStyle: "italic",
-                    }}
-                  >
-                    {screenshot.alt}
-                  </div>
+                  {/* Per-screenshot caption — only rendered when alt is non-empty */}
+                  {screenshot.alt && (
+                    <div
+                      style={{
+                        fontSize: 12.5,
+                        color: "var(--text-tertiary)",
+                        marginTop: 8,
+                        fontStyle: "italic",
+                      }}
+                    >
+                      {screenshot.alt}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
