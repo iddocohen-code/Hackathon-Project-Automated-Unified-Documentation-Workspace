@@ -31,7 +31,8 @@ type IconName =
   | "sparkles-gradient" // AI Copilot TopBar (gradient)
   | "bell"         // Notifications
   | "flag"         // Raise flag action
-  | "shield";      // Shark mitigation header
+  | "shield"       // Shark mitigation header
+  | "siren";       // Emergency Shark Siren
 
 interface IconProps extends React.SVGProps<SVGSVGElement> {
   name: IconName;
@@ -194,6 +195,16 @@ const PATHS: Record<IconName, React.ReactNode> = {
     </>
   ),
   shield: <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />,
+  siren: (
+    <>
+      <path d="M12 2a7 7 0 0 1 7 7v5H5V9a7 7 0 0 1 7-7z" />
+      <path d="M5 14h14v2H5z" />
+      <path d="M9 17h6v2a3 3 0 0 1-6 0v-2z" />
+      <path d="M2 8.5l1.5 1" />
+      <path d="M22 8.5l-1.5 1" />
+      <path d="M12 2V0" />
+    </>
+  ),
 };
 
 export default function Icon({ name, size = 18, stroke, ...rest }: IconProps) {
