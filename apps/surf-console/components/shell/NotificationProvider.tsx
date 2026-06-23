@@ -18,7 +18,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from "react";
 import type { ChangeEntry } from "@surf/types";
-import { useReadState } from "../../lib/readState";
+import { useReadState, getRead, markAllRead } from "../../lib/readState";
 
 interface NotificationContextValue {
   critical: ChangeEntry | null;
@@ -64,6 +64,23 @@ export function NotificationProvider({ children, allEntryIds = [] }: Notificatio
   // Derive unread count from read-state (live, cross-component sync via custom event)
   const { unreadCount: computeUnreadCount } = useReadState();
   const unreadCount = computeUnreadCount(allEntryIds);
+
+  /**
+   * Demo-only baseline read-seed (inert in production).
+   * When NEXT_PUBLIC_DEMO_SEED_READ is set AND no read-state exists yet, mark
+   * every changelog entry present at first load as read. This gives the demo a
+   * clean "all caught up" slate (no red badge) for the pre-existing history, so
+   * the unread badge appears ONLY for the entry the automation later prepends
+   * (a new id, not yet in the read-set). Guarded on an empty read-set, so it
+   * never re-runs and never marks the automation's new entry as read.
+   */
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!process.env.NEXT_PUBLIC_DEMO_SEED_READ) return;
+    if (allEntryIds.length === 0) return;
+    if (getRead().size > 0) return; // already seeded / has read-state — leave it
+    markAllRead(allEntryIds);
+  }, [allEntryIds]);
 
   /** Plan 1 local trigger: ?demoToast=1 on mount shows the demo entry. */
   useEffect(() => {

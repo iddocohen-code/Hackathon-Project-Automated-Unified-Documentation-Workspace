@@ -38,12 +38,7 @@
       "screenshots": [],
       "sourceComponent": "apps/surf-console/components/console/SharkMitigationCard.tsx",
       "version": 3,
-      "updatedAt": "2025-03-12T10:00:00Z",
-      "lastChange": {
-        "headline": "Shark Mitigation Protocol updated to v3",
-        "detail": "Refined the four-step response procedure. No automated alerting; manual siren protocol remains out of scope for this release.",
-        "intentSource": "JIRA SURF-110"
-      }
+      "updatedAt": "2025-03-12T10:00:00Z"
     },
     {
       "id": "storm-surge-response",
