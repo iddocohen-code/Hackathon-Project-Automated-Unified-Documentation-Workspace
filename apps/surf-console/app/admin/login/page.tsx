@@ -27,7 +27,9 @@ export default function AdminLoginPage() {
         body: JSON.stringify({ password }),
       });
       if (res.ok) {
-        router.replace("/admin");
+        // Land in the documentation portal after sign-in (the admin "Edit this
+        // doc" buttons are now available there), not the bare admin workspace.
+        router.replace("/docs");
         router.refresh();
       } else {
         const data = (await res.json().catch(() => ({}))) as { error?: string };
