@@ -10,6 +10,8 @@ import type { PullRequestEvent } from '@surf/types';
 import { answerQuery } from './rag/answer.js';
 import { getRetriever } from './rag/index-state.js';
 import { notifier } from './events/notifier.js';
+import { loadCorpus } from './rag/corpus.js';
+import { buildSections } from './rag/retriever.js';
 
 export interface BuildAppOptions {
   /**
@@ -61,6 +63,93 @@ export function buildApp(config?: Config, scheduler?: Scheduler, options?: Build
 
   app.get('/health', async () => {
     return { ok: true };
+  });
+
+  // GET /agent/corpus — flat JSON projection of the full docs corpus.
+  //
+  // Returns an array of objects: { id, title, category, version, updatedAt, sections }
+  // where sections are derived by splitting each doc's bodyMarkdown at headings.
+  // Read-only: does NOT write content/docs.
+  app.get('/agent/corpus', async (_request, reply) => {
+    const docsContentDir = config?.docsContentDir;
+    if (!docsContentDir) {
+      return reply.code(500).send({ error: 'docsContentDir not configured' });
+    }
+    const docs = await loadCorpus(docsContentDir);
+    const allSections = buildSections(docs);
+
+    // Group sections by docId
+    const sectionsByDoc = new Map<string, Array<{ heading: string; anchor: string; text: string }>>();
+    for (const section of allSections) {
+      const existing = sectionsByDoc.get(section.docId) ?? [];
+      existing.push({ heading: section.heading, anchor: section.anchor, text: section.text });
+      sectionsByDoc.set(section.docId, existing);
+    }
+
+    const corpus = docs.map((doc) => ({
+      id: doc.id,
+      title: doc.title,
+      category: doc.category.id,
+      version: doc.version,
+      updatedAt: doc.updatedAt,
+      sections: sectionsByDoc.get(doc.id) ?? [],
+    }));
+
+    return reply.code(200).send(corpus);
+  });
+
+  // GET /llms.txt — plaintext index of the docs corpus in llms.txt style.
+  //
+  // Returns Content-Type: text/plain with a human-skimmable index listing each
+  // doc as a bullet with its title, path, and first section heading.
+  // Read-only: does NOT write content/docs.
+  app.get('/llms.txt', async (_request, reply) => {
+    const docsContentDir = config?.docsContentDir;
+    if (!docsContentDir) {
+      return reply.code(500).send('docsContentDir not configured');
+    }
+    const docs = await loadCorpus(docsContentDir);
+    const allSections = buildSections(docs);
+
+    // Build a map of docId → first section heading for the summary line
+    const firstSectionByDoc = new Map<string, string>();
+    for (const section of allSections) {
+      if (!firstSectionByDoc.has(section.docId)) {
+        firstSectionByDoc.set(section.docId, section.heading);
+      }
+    }
+
+    const lines: string[] = [
+      '# Surf Console Documentation',
+      '> Machine-readable index of all auto-generated docs. Consumable by AI agents and LLM toolchains.',
+      '',
+      '## Docs',
+      '',
+    ];
+
+    for (const doc of docs) {
+      const summary = firstSectionByDoc.get(doc.id) ?? doc.title;
+      lines.push(`- [${doc.title}](/docs/${doc.id}): ${summary}`);
+
+      // List section anchors for this doc
+      const docSections = allSections.filter((s) => s.docId === doc.id);
+      for (const section of docSections) {
+        lines.push(`  - #${section.anchor}: ${section.heading}`);
+      }
+    }
+
+    lines.push('');
+    lines.push('## Agent Endpoints');
+    lines.push('');
+    lines.push('- GET /agent/corpus — full JSON corpus (array of docs with sections)');
+    lines.push('- GET /llms.txt — this file');
+    lines.push('');
+    lines.push('## Coming Soon');
+    lines.push('');
+    lines.push('- MCP server over the docs corpus for structured agent tool calls');
+
+    void reply.header('Content-Type', 'text/plain; charset=utf-8');
+    return reply.code(200).send(lines.join('\n'));
   });
 
   // GET /events — Server-Sent Events stream for live notifications.
