@@ -181,6 +181,26 @@ export default function TopBar({
         <Icon name="book-open" size={19} strokeWidth={1.9} />
       </Link>
 
+      {/* Admin sign-in — discreet entry point; /admin middleware redirects
+          unauthenticated users to /admin/login automatically. */}
+      <Link
+        href="/admin"
+        title="Admin"
+        style={{
+          fontSize: 11,
+          fontWeight: 500,
+          color: "var(--text-tertiary)",
+          textDecoration: "none",
+          padding: "3px 8px",
+          borderRadius: 5,
+          border: "1px solid var(--border-subtle)",
+          lineHeight: 1,
+          whiteSpace: "nowrap",
+        }}
+      >
+        Admin
+      </Link>
+
       {/* Message / chat */}
       <button
         className="uw-iconbtn"
