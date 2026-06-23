@@ -5,6 +5,8 @@
  * and the /llms.txt plaintext index, both consumable by AI agents.
  */
 
+import AgentLivePreview from "@/components/docs/AgentLivePreview";
+
 export default function AgentDocsPage() {
   return (
     <div style={{ padding: "28px 28px 60px", maxWidth: 860 }}>
@@ -212,6 +214,9 @@ export default function AgentDocsPage() {
             windows as a lightweight index.
           </p>
         </section>
+
+        {/* Live agent preview — last square before MCP: see exactly what an agent receives */}
+        <AgentLivePreview />
 
         {/* Coming soon */}
         <section
