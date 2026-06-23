@@ -22,6 +22,22 @@ export default async function DocsPage() {
     counts[cat.id] = cat.docCount ?? manifest.docs.filter((d) => d.category.id === cat.id).length;
   }
 
+  // "Updated"/"What's New" indicators must reflect reality: a doc counts as
+  // freshly updated only when its updatedAt is recent. The bot stamps
+  // updatedAt = now on publish, while the seeded baseline docs are dated 2025 —
+  // so nothing is flagged until the automation actually regenerates a doc.
+  const RECENT_MS = 7 * 24 * 60 * 60 * 1000;
+  const now = Date.now();
+  const isRecent = (iso: string): boolean => {
+    const t = new Date(iso).getTime();
+    return Number.isFinite(t) && now - t < RECENT_MS;
+  };
+  const updatedDocIds = manifest.docs.filter((d) => isRecent(d.updatedAt)).map((d) => d.id);
+  const updatedCategoryIds = categories
+    .filter((cat) => manifest.docs.some((d) => d.category.id === cat.id && isRecent(d.updatedAt)))
+    .map((cat) => cat.id);
+  const whatsNewCount = updatedDocIds.length;
+
   return (
     <div style={{ padding: "28px 28px 60px", maxWidth: 1380 }}>
       <DocsHeader />
@@ -30,6 +46,9 @@ export default async function DocsPage() {
         categories={categories}
         counts={counts}
         incidentProtocolDocs={incidentProtocolDocs}
+        updatedDocIds={updatedDocIds}
+        updatedCategoryIds={updatedCategoryIds}
+        whatsNewCount={whatsNewCount}
       />
     </div>
   );

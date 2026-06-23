@@ -18,7 +18,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from "react";
 import type { ChangeEntry } from "@surf/types";
-import { useReadState, getRead, markAllRead } from "../../lib/readState";
+import { useReadState, markAllRead } from "../../lib/readState";
 
 interface NotificationContextValue {
   critical: ChangeEntry | null;
@@ -53,9 +53,21 @@ interface NotificationProviderProps {
   children: React.ReactNode;
   /** ids of all changelog entries — used to compute the unread badge count */
   allEntryIds?: string[];
+  /**
+   * Demo-only: changelog ids to pre-mark read on every load so the before-state
+   * shows no unread badge for pre-existing history. Computed server-side in the
+   * layout (the non-demo-doc entries) and empty in production. Idempotent — it
+   * never includes the automation's freshly-prepended entry, so that one still
+   * surfaces the unread badge after the bot runs.
+   */
+  demoSeedReadIds?: string[];
 }
 
-export function NotificationProvider({ children, allEntryIds = [] }: NotificationProviderProps) {
+export function NotificationProvider({
+  children,
+  allEntryIds = [],
+  demoSeedReadIds = [],
+}: NotificationProviderProps) {
   const [critical, setCritical] = useState<ChangeEntry | null>(null);
 
   const show = (entry: ChangeEntry) => setCritical(entry);
@@ -67,20 +79,17 @@ export function NotificationProvider({ children, allEntryIds = [] }: Notificatio
 
   /**
    * Demo-only baseline read-seed (inert in production).
-   * When NEXT_PUBLIC_DEMO_SEED_READ is set AND no read-state exists yet, mark
-   * every changelog entry present at first load as read. This gives the demo a
-   * clean "all caught up" slate (no red badge) for the pre-existing history, so
-   * the unread badge appears ONLY for the entry the automation later prepends
-   * (a new id, not yet in the read-set). Guarded on an empty read-set, so it
-   * never re-runs and never marks the automation's new entry as read.
+   * demoSeedReadIds (computed server-side: the pre-existing, non-demo changelog
+   * entries) are marked read on EVERY load — idempotent, and robust to whatever
+   * read-state a reused demo browser already has. It never includes the
+   * automation's freshly-prepended entry, so that one still surfaces the unread
+   * badge after the bot runs. Empty in production ⇒ this is a no-op.
    */
   useEffect(() => {
     if (typeof window === "undefined") return;
-    if (!process.env.NEXT_PUBLIC_DEMO_SEED_READ) return;
-    if (allEntryIds.length === 0) return;
-    if (getRead().size > 0) return; // already seeded / has read-state — leave it
-    markAllRead(allEntryIds);
-  }, [allEntryIds]);
+    if (demoSeedReadIds.length === 0) return;
+    markAllRead(demoSeedReadIds);
+  }, [demoSeedReadIds]);
 
   /** Plan 1 local trigger: ?demoToast=1 on mount shows the demo entry. */
   useEffect(() => {

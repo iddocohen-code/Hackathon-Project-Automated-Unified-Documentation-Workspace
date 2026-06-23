@@ -24,12 +24,21 @@ interface FolderGridProps {
   categories: DocCategory[];
   counts: Record<string, number>;
   incidentProtocolDocs: Doc[];
+  /** doc ids that were recently updated (by the automation) — drive "Updated" badges */
+  updatedDocIds?: string[];
+  /** category ids containing a recently-updated doc — drive the folder "Updated" badge */
+  updatedCategoryIds?: string[];
+  /** number of recently-updated docs — drives the "What's New" pill (hidden when 0) */
+  whatsNewCount?: number;
 }
 
 export default function FolderGrid({
   categories,
   counts,
   incidentProtocolDocs,
+  updatedDocIds = [],
+  updatedCategoryIds = [],
+  whatsNewCount = 0,
 }: FolderGridProps) {
   const [modalOpen, setModalOpen] = useState(false);
 
@@ -61,76 +70,81 @@ export default function FolderGrid({
           App directory
         </div>
 
-        {/* What's New button — links to /docs/whats-new */}
-        <Link
-          href="/docs/whats-new"
-          style={{
-            position: "relative",
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 9,
-            height: 40,
-            padding: "0 18px",
-            background: "var(--severity-high)",
-            color: "#fff",
-            border: "1px solid var(--severity-high)",
-            borderRadius: 10,
-            fontFamily: "inherit",
-            fontSize: 14,
-            fontWeight: 600,
-            cursor: "pointer",
-            textDecoration: "none",
-            animation: "sirenpulse 1.4s ease-in-out infinite",
-          }}
-          className="uw-btn-siren"
-        >
-          <span
+        {/* What's New button — links to /docs/whats-new. Renders ONLY when the
+            automation has actually produced an update (whatsNewCount > 0); the
+            pulsing red alert is the "something new" signal, so it must not show
+            in the quiet before-state. */}
+        {whatsNewCount > 0 && (
+          <Link
+            href="/docs/whats-new"
             style={{
               position: "relative",
               display: "inline-flex",
-              width: 9,
-              height: 9,
+              alignItems: "center",
+              gap: 9,
+              height: 40,
+              padding: "0 18px",
+              background: "var(--severity-high)",
+              color: "#fff",
+              border: "1px solid var(--severity-high)",
+              borderRadius: 10,
+              fontFamily: "inherit",
+              fontSize: 14,
+              fontWeight: 600,
+              cursor: "pointer",
+              textDecoration: "none",
+              animation: "sirenpulse 1.4s ease-in-out infinite",
             }}
+            className="uw-btn-siren"
           >
-            <span
-              style={{
-                position: "absolute",
-                inset: 0,
-                borderRadius: "50%",
-                background: "#fff",
-                opacity: 0.55,
-                animation: "uwpulse 1.4s ease-out infinite",
-              }}
-            />
             <span
               style={{
                 position: "relative",
+                display: "inline-flex",
                 width: 9,
                 height: 9,
-                borderRadius: "50%",
-                background: "#fff",
               }}
-            />
-          </span>
-          What&apos;s New
-          <span
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              minWidth: 18,
-              height: 18,
-              padding: "0 5px",
-              borderRadius: 50,
-              background: "#fff",
-              color: "var(--severity-high)",
-              fontSize: 11,
-              fontWeight: 700,
-            }}
-          >
-            1
-          </span>
-        </Link>
+            >
+              <span
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  borderRadius: "50%",
+                  background: "#fff",
+                  opacity: 0.55,
+                  animation: "uwpulse 1.4s ease-out infinite",
+                }}
+              />
+              <span
+                style={{
+                  position: "relative",
+                  width: 9,
+                  height: 9,
+                  borderRadius: "50%",
+                  background: "#fff",
+                }}
+              />
+            </span>
+            What&apos;s New
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                minWidth: 18,
+                height: 18,
+                padding: "0 5px",
+                borderRadius: 50,
+                background: "#fff",
+                color: "var(--severity-high)",
+                fontSize: 11,
+                fontWeight: 700,
+              }}
+            >
+              {whatsNewCount}
+            </span>
+          </Link>
+        )}
       </div>
 
       {/* 4-up folder tile grid — responsive via .surf-folder-grid in globals.css */}
@@ -141,7 +155,7 @@ export default function FolderGrid({
             categoryId={cat.id}
             name={cat.name}
             count={counts[cat.id] ?? 0}
-            isUpdated={cat.id === "incident-protocols"}
+            isUpdated={updatedCategoryIds.includes(cat.id)}
             onOpen={
               cat.id === "incident-protocols"
                 ? () => setModalOpen(true)
@@ -156,6 +170,7 @@ export default function FolderGrid({
         <FolderModal
           category={incidentCategory}
           docs={incidentProtocolDocs}
+          updatedDocIds={updatedDocIds}
           onClose={() => setModalOpen(false)}
         />
       )}

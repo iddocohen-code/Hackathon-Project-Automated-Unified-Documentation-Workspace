@@ -22,6 +22,8 @@ import type { DocCategory, Doc } from "@surf/types";
 interface FolderModalProps {
   category: DocCategory;
   docs: Doc[];
+  /** doc ids that were recently updated (by the automation) — drive "Updated" badges */
+  updatedDocIds?: string[];
   onClose: () => void;
 }
 
@@ -61,6 +63,7 @@ function getDocVisual(docId: string): {
 export default function FolderModal({
   category,
   docs,
+  updatedDocIds = [],
   onClose,
 }: FolderModalProps) {
   // Close on ESC
@@ -213,8 +216,9 @@ export default function FolderModal({
         >
           {docs.map((doc) => {
             const visual = getDocVisual(doc.id);
-            // shark-mitigation is the only doc flagged "Updated" in before-state — see content/docs/manifest.json
-            const isUpdated = doc.id === "shark-mitigation";
+            // "Updated" shows only when the automation actually regenerated this
+            // doc (recent updatedAt), computed server-side — never hardcoded.
+            const isUpdated = updatedDocIds.includes(doc.id);
 
             return (
               <Link
