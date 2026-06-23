@@ -310,3 +310,111 @@ export async function publish(input: PublishInput): Promise<void> {
     await onIndexRebuild();
   }
 }
+
+// ---------------------------------------------------------------------------
+// Admin manual-editor path — prose-only, AI-free, NO screenshot.
+//
+// ADDITIVE, SEPARATE entry point. Reuses the existing atomicWriteFile and
+// defaultCommitFn helpers from this file. Does NOT touch publish() or
+// derivePngInfo. Carries the doc's EXISTING screenshots into the manifest
+// unchanged (no capture, no PNG write).
+//
+// HARD contract (same as publish):
+//   - manifest doc keeps bodyMarkdown: "" (body lives only in index.md)
+//   - manifest categories (incl. docCount) preserved verbatim
+//   - all other doc entries left completely untouched
+//   - the manifest entry's screenshots are taken from the doc verbatim
+//   - commit message carries [skip-bot]; commit via the same git mechanism
+// ---------------------------------------------------------------------------
+
+/** Input for the AI-free manual-editor save path. */
+export interface SaveManualEditInput {
+  /**
+   * The assembled Doc to persist. `screenshots` MUST already carry the doc's
+   * existing screenshots (web paths) — saveManualEdit does NOT capture or write
+   * any image; it persists whatever the doc already holds.
+   */
+  doc: Doc;
+  /** The new (typically `info`) ChangeEntry to prepend to changelog. */
+  changeEntry: ChangeEntry;
+  /** Filesystem path to content/docs root. */
+  docsContentDir: string;
+  /** Override the git commit step (no-op/spy in tests). Defaults to real git. */
+  commitFn?: CommitFn;
+  /** Called after a successful save (no-op for now). */
+  notify?: NoOpHook;
+  /** Called after a successful save to trigger index rebuild (no-op for now). */
+  onIndexRebuild?: NoOpHook;
+}
+
+export async function saveManualEdit(input: SaveManualEditInput): Promise<void> {
+  const {
+    doc,
+    changeEntry,
+    docsContentDir,
+    commitFn = defaultCommitFn,
+    notify,
+    onIndexRebuild,
+  } = input;
+
+  // Filesystem paths
+  const docDir = path.join(docsContentDir, doc.id);
+  const indexMdPath = path.join(docDir, 'index.md');
+  const manifestPath = path.join(docsContentDir, 'manifest.json');
+  const changelogPath = path.join(docsContentDir, 'changelog.json');
+
+  // Step 1: write index.md (body markdown only — no frontmatter).
+  await mkdir(docDir, { recursive: true });
+  await atomicWriteFile(indexMdPath, doc.bodyMarkdown);
+
+  // Step 2: surgical manifest merge — replace ONLY the matching doc entry.
+  //   - bodyMarkdown MUST be "" (body lives in index.md only)
+  //   - categories preserved verbatim (incl. docCount)
+  //   - all other doc entries untouched
+  //   - screenshots written from doc.screenshots verbatim (no new capture)
+  const manifestRaw = await readFile(manifestPath, 'utf-8');
+  const manifest = JSON.parse(manifestRaw) as DocsManifest;
+
+  const updatedDocs = manifest.docs.map((existing) => {
+    if (existing.id !== doc.id) {
+      return existing; // untouched
+    }
+    return {
+      ...existing,
+      title: doc.title,
+      category: doc.category,
+      bodyMarkdown: '', // HARD contract: body lives in index.md
+      screenshots: doc.screenshots,
+      sourceComponent: doc.sourceComponent,
+      version: doc.version,
+      updatedAt: doc.updatedAt,
+      lastChange: doc.lastChange,
+    };
+  });
+
+  const updatedManifest: DocsManifest = {
+    categories: manifest.categories, // preserved verbatim
+    docs: updatedDocs,
+  };
+  await atomicWriteFile(manifestPath, JSON.stringify(updatedManifest, null, 2));
+
+  // Step 3: prepend the new ChangeEntry to changelog.json (verbatim — no
+  // screenshotDiff rewrite; manual edits carry no new screenshot).
+  const changelogRaw = await readFile(changelogPath, 'utf-8');
+  const changelog = JSON.parse(changelogRaw) as Changelog;
+  const updatedChangelog: Changelog = [changeEntry, ...changelog];
+  await atomicWriteFile(changelogPath, JSON.stringify(updatedChangelog, null, 2));
+
+  // Step 4: git add + commit (same mechanism as publish; injectable for tests).
+  // NO PNG path is included — manual edits never write an image.
+  const commitMessage = `docs: manual edit ${doc.id} (v${doc.version}) [skip-bot]`;
+  await commitFn([indexMdPath, manifestPath, changelogPath], commitMessage);
+
+  // Hooks
+  if (notify) {
+    await notify();
+  }
+  if (onIndexRebuild) {
+    await onIndexRebuild();
+  }
+}

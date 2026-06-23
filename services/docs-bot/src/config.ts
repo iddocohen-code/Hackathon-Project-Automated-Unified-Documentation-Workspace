@@ -30,6 +30,10 @@ const configSchema = z.object({
   webhookSecret: z
     .string()
     .default(''),
+  /** Shared secret for the admin manual-save endpoint (x-admin-token). Empty = endpoint disabled. */
+  adminToken: z
+    .string()
+    .default(''),
   port: z.preprocess(
     (v) => (v === '' ? undefined : v),
     z.coerce.number().int().positive().default(4000),
@@ -65,6 +69,7 @@ export function loadConfig(): Config {
     docsContentDir: process.env['DOCS_CONTENT_DIR'],
     screenshotsPublicDir: process.env['SCREENSHOTS_PUBLIC_DIR'],
     webhookSecret: process.env['GITHUB_WEBHOOK_SECRET'],
+    adminToken: process.env['BOT_ADMIN_TOKEN'],
     port: process.env['PORT'],
     corsOrigin: process.env['CORS_ORIGIN'],
     retrieverMode: process.env['RETRIEVER_MODE'],

@@ -1,9 +1,12 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { readFile } from 'node:fs/promises';
+import { randomUUID } from 'node:crypto';
 import { simpleGit } from 'simple-git';
 
 import { loadConfig } from './config.js';
 import { buildApp } from './server.js';
+import type { AdminSavePayload, AdminSaveResult } from './server.js';
 import { makeScheduler } from './pipeline/scheduler.js';
 import { makeRunJob } from './pipeline/runJob.js';
 import { PlaywrightCapture } from './capture/capture.js';
@@ -12,7 +15,9 @@ import { FixtureSlackSource } from './context/fixtures/slack.js';
 import { FixtureConfluenceSource } from './context/fixtures/confluence.js';
 import { getChangedPaths } from './git/diff.js';
 import { initIndex, rebuildIndex } from './rag/index-state.js';
-import type { PullRequestEvent } from '@surf/types';
+import { saveManualEdit } from './publish/publisher.js';
+import { withLock } from './publish/lock.js';
+import type { PullRequestEvent, Doc, ChangeEntry, DocsManifest } from '@surf/types';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, '../../..');
@@ -71,6 +76,65 @@ async function resolveChangedPaths(event: PullRequestEvent): Promise<string[]> {
   return getChangedPaths(event.mergedSha, repoRoot);
 }
 
+// ---------------------------------------------------------------------------
+// Admin manual-save handler (admin editor → bot).
+//
+// Per-docId locked so a manual save and a bot job can't interleave on the same
+// doc's manifest entry. Optimistic concurrency via baseVersion → 409 on stale.
+// Reuses the publisher's atomic helpers via saveManualEdit (no AI, no screenshot).
+// ---------------------------------------------------------------------------
+async function adminSave(payload: AdminSavePayload): Promise<AdminSaveResult> {
+  return withLock(payload.docId, async (): Promise<AdminSaveResult> => {
+    const manifestPath = path.join(config.docsContentDir, 'manifest.json');
+    const manifest = JSON.parse(await readFile(manifestPath, 'utf-8')) as DocsManifest;
+    const current = manifest.docs.find((d) => d.id === payload.docId);
+
+    if (current === undefined) {
+      return { status: 404, body: { error: `doc '${payload.docId}' not found` } };
+    }
+    if (payload.baseVersion !== current.version) {
+      return {
+        status: 409,
+        body: { error: 'version conflict', currentVersion: current.version },
+      };
+    }
+
+    const now = new Date().toISOString();
+    const newVersion = current.version + 1;
+    const note = payload.changeNote ?? '';
+    const summary = { headline: 'Manual edit', detail: note, intentSource: 'Manual admin edit' };
+
+    const updatedDoc: Doc = {
+      ...current,
+      title: payload.title ?? current.title,
+      bodyMarkdown: payload.bodyMarkdown,
+      version: newVersion,
+      updatedAt: now,
+      lastChange: summary,
+    };
+
+    const changeEntry: ChangeEntry = {
+      id: `chg-${randomUUID().slice(0, 8)}`,
+      docId: payload.docId,
+      summary,
+      severity: 'info',
+      prUrl: '',
+      contextRefs: [],
+      createdAt: now,
+    };
+
+    await saveManualEdit({
+      doc: updatedDoc,
+      changeEntry,
+      docsContentDir: config.docsContentDir,
+      // commitFn: undefined → publisher uses the real simpleGit commit
+      // Rebuild the RAG index after a successful manual save so /search stays current.
+      onIndexRebuild: () => rebuildIndex(),
+    });
+    return { status: 200, body: { ok: true, version: newVersion } };
+  });
+}
+
 // Wire the real pipeline into the scheduler and start the server
 const scheduler = makeScheduler(
   {
@@ -80,5 +144,5 @@ const scheduler = makeScheduler(
   runJob,
 );
 
-const app = buildApp(config, scheduler, { resolveChangedPaths });
+const app = buildApp(config, scheduler, { resolveChangedPaths, adminSave });
 await app.listen({ port: config.port, host: '0.0.0.0' });

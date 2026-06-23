@@ -1,3 +1,4 @@
+import { timingSafeEqual } from 'node:crypto';
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import type { Config } from './config.js';
@@ -13,6 +14,21 @@ import { notifier } from './events/notifier.js';
 import { loadCorpus } from './rag/corpus.js';
 import { buildSections } from './rag/retriever.js';
 
+/** Payload for the admin manual-save endpoint (POST /admin/save). */
+export interface AdminSavePayload {
+  docId: string;
+  bodyMarkdown: string;
+  baseVersion: number;
+  title?: string;
+  changeNote?: string;
+}
+
+/** Result returned by an adminSave handler: an HTTP status + JSON body. */
+export interface AdminSaveResult {
+  status: number;
+  body: unknown;
+}
+
 export interface BuildAppOptions {
   /**
    * Injectable resolver that, given a PullRequestEvent, fetches the list of
@@ -25,6 +41,21 @@ export interface BuildAppOptions {
    * Must resolve; on error the handler logs and responds 202 without enqueue.
    */
   resolveChangedPaths?: (event: PullRequestEvent) => Promise<string[]>;
+  /**
+   * Injectable handler for POST /admin/save. Performs the per-doc-locked,
+   * atomic manual-edit save (load manifest → version check → saveManualEdit).
+   * Wired in index.ts; left undefined in unit tests that don't exercise it.
+   * The server owns auth (x-admin-token); this handler owns the write.
+   */
+  adminSave?: (payload: AdminSavePayload) => Promise<AdminSaveResult>;
+}
+
+/** Constant-time string compare that never throws on length mismatch. */
+function constantTimeEqual(a: string, b: string): boolean {
+  const ab = Buffer.from(a, 'utf8');
+  const bb = Buffer.from(b, 'utf8');
+  if (ab.length !== bb.length) return false;
+  return timingSafeEqual(ab, bb);
 }
 
 export function buildApp(config?: Config, scheduler?: Scheduler, options?: BuildAppOptions) {
@@ -193,6 +224,52 @@ export function buildApp(config?: Config, scheduler?: Scheduler, options?: Build
   app.post('/run-now', async (_request, reply) => {
     await activeScheduler.runNow();
     return reply.code(202).send({ status: 'flushed' });
+  });
+
+  // POST /admin/save — authenticated manual-edit save (admin editor).
+  //
+  // Auth: requires `x-admin-token` matching config.adminToken (constant-time).
+  // An empty configured token disables the endpoint entirely (503). The actual
+  // write is delegated to the injected `adminSave` handler (wired in index.ts).
+  app.post('/admin/save', async (request, reply) => {
+    const configuredToken = config?.adminToken ?? '';
+    const adminSave = options?.adminSave;
+
+    if (configuredToken === '') {
+      return reply.code(503).send({ error: 'admin endpoint disabled (no BOT_ADMIN_TOKEN configured)' });
+    }
+    const provided = (request.headers['x-admin-token'] ?? '') as string;
+    if (!constantTimeEqual(provided, configuredToken)) {
+      return reply.code(401).send({ error: 'invalid admin token' });
+    }
+    if (adminSave === undefined) {
+      return reply.code(501).send({ error: 'admin save not wired' });
+    }
+
+    const body = (request.body ?? {}) as Partial<AdminSavePayload>;
+    if (
+      typeof body.docId !== 'string' ||
+      typeof body.bodyMarkdown !== 'string' ||
+      typeof body.baseVersion !== 'number'
+    ) {
+      return reply.code(400).send({ error: 'docId, bodyMarkdown, and baseVersion are required' });
+    }
+
+    const payload: AdminSavePayload = {
+      docId: body.docId,
+      bodyMarkdown: body.bodyMarkdown,
+      baseVersion: body.baseVersion,
+      ...(typeof body.title === 'string' ? { title: body.title } : {}),
+      ...(typeof body.changeNote === 'string' ? { changeNote: body.changeNote } : {}),
+    };
+
+    try {
+      const result = await adminSave(payload);
+      return reply.code(result.status).send(result.body);
+    } catch (err) {
+      app.log.error({ err, docId: payload.docId }, 'admin save failed');
+      return reply.code(500).send({ error: 'save failed; no changes written' });
+    }
   });
 
   // POST /webhook — receives GitHub PR events.
