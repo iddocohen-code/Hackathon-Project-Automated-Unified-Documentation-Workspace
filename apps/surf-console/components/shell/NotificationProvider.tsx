@@ -12,13 +12,15 @@
  *   - onerror → silent (EventSource auto-reconnects)
  *   - closes on unmount
  *
- * Task 6B: accepts allEntryIds prop (ids of all changelog entries) to compute
- * unreadCount via useReadState(). Consumers read unreadCount via useNotifications().
+ * Task 6B: accepts recentEntryIds prop (ids of RECENTLY-created changelog
+ * entries) and computes unreadCount via useReadState() over just those — so the
+ * badge reflects only fresh, still-unread updates (pre-existing 2025 history
+ * never lights it). Consumers read unreadCount via useNotifications().
  */
 
 import React, { createContext, useContext, useState, useEffect } from "react";
 import type { ChangeEntry } from "@surf/types";
-import { useReadState, markAllRead } from "../../lib/readState";
+import { useReadState } from "../../lib/readState";
 
 interface NotificationContextValue {
   critical: ChangeEntry | null;
@@ -51,45 +53,27 @@ const DEMO_ENTRY: ChangeEntry = {
 
 interface NotificationProviderProps {
   children: React.ReactNode;
-  /** ids of all changelog entries — used to compute the unread badge count */
-  allEntryIds?: string[];
   /**
-   * Demo-only: changelog ids to pre-mark read on every load so the before-state
-   * shows no unread badge for pre-existing history. Computed server-side in the
-   * layout (the non-demo-doc entries) and empty in production. Idempotent — it
-   * never includes the automation's freshly-prepended entry, so that one still
-   * surfaces the unread badge after the bot runs.
+   * ids of RECENTLY-created changelog entries — the unread badge counts only
+   * these, so old history never lights it and a fresh automation entry does.
    */
-  demoSeedReadIds?: string[];
+  recentEntryIds?: string[];
 }
 
 export function NotificationProvider({
   children,
-  allEntryIds = [],
-  demoSeedReadIds = [],
+  recentEntryIds = [],
 }: NotificationProviderProps) {
   const [critical, setCritical] = useState<ChangeEntry | null>(null);
 
   const show = (entry: ChangeEntry) => setCritical(entry);
   const dismiss = () => setCritical(null);
 
-  // Derive unread count from read-state (live, cross-component sync via custom event)
+  // Unread badge = recent entries that the user hasn't read yet (live read-state
+  // sync via custom event). Recency keeps pre-existing history from alarming;
+  // read-state keeps "mark all read" working.
   const { unreadCount: computeUnreadCount } = useReadState();
-  const unreadCount = computeUnreadCount(allEntryIds);
-
-  /**
-   * Demo-only baseline read-seed (inert in production).
-   * demoSeedReadIds (computed server-side: the pre-existing, non-demo changelog
-   * entries) are marked read on EVERY load — idempotent, and robust to whatever
-   * read-state a reused demo browser already has. It never includes the
-   * automation's freshly-prepended entry, so that one still surfaces the unread
-   * badge after the bot runs. Empty in production ⇒ this is a no-op.
-   */
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (demoSeedReadIds.length === 0) return;
-    markAllRead(demoSeedReadIds);
-  }, [demoSeedReadIds]);
+  const unreadCount = computeUnreadCount(recentEntryIds);
 
   /** Plan 1 local trigger: ?demoToast=1 on mount shows the demo entry. */
   useEffect(() => {

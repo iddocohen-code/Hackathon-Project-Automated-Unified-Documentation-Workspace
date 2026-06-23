@@ -55,8 +55,19 @@ function formatCaptured(isoDate: string): string {
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
+/** Whether a doc was updated recently enough to surface "freshly updated" UI.
+ *  Same 7-day rule the App Directory grid uses, so all "updated" signals agree:
+ *  the bot stamps updatedAt = now on publish; seeded baseline docs are dated 2025. */
+function isRecentlyUpdated(isoDate: string): boolean {
+  const t = new Date(isoDate).getTime();
+  return Number.isFinite(t) && Date.now() - t < 7 * 24 * 60 * 60 * 1000;
+}
+
 export default function DocView({ doc, isAdmin = false }: DocViewProps) {
   const updatedLabel = formatUpdated(doc.updatedAt);
+  // The "What changed" callout shows only when this doc was actually just
+  // regenerated (recent updatedAt) — not merely because it carries change history.
+  const showWhatChanged = doc.lastChange != null && isRecentlyUpdated(doc.updatedAt);
 
   return (
     <div style={{ maxWidth: 920 }}>
@@ -284,8 +295,8 @@ export default function DocView({ doc, isAdmin = false }: DocViewProps) {
             )}
           </div>
 
-          {/* "What changed" callout — only when lastChange exists */}
-          {doc.lastChange && (
+          {/* "What changed" callout — only when this doc was recently regenerated */}
+          {showWhatChanged && doc.lastChange && (
             <div
               style={{
                 display: "flex",
