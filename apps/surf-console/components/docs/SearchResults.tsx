@@ -10,6 +10,8 @@
 
 import React from "react";
 import Link from "next/link";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import type { RagAnswer } from "@surf/types";
 
 interface SearchResultsProps {
@@ -106,9 +108,10 @@ export default function SearchResults({ status, answer }: SearchResultsProps) {
         </span>
       </div>
 
-      {/* Answer body */}
+      {/* Answer body — rendered as Markdown (synthesis emits **bold**, lists, etc.) */}
       <div style={{ padding: "16px 20px" }}>
-        <p
+        <div
+          className="uw-rag-answer"
           style={{
             fontSize: 14.5,
             lineHeight: 1.65,
@@ -116,8 +119,10 @@ export default function SearchResults({ status, answer }: SearchResultsProps) {
             margin: "0 0 16px",
           }}
         >
-          {answer.answer}
-        </p>
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            {answer.answer}
+          </ReactMarkdown>
+        </div>
 
         {/* Citation rows */}
         {answer.citations.length > 0 && (
