@@ -46,6 +46,14 @@ const configSchema = z.object({
     (v) => (v === 'true' || v === '1' ? true : false),
     z.boolean().default(false),
   ),
+  captureHeadful: z.preprocess(
+    (v) => (v === 'true' || v === '1' ? true : false),
+    z.boolean().default(false),
+  ),
+  captureSlowMo: z.preprocess(
+    (v) => (v === '' ? undefined : v),
+    z.coerce.number().int().min(0).default(0),
+  ),
 });
 
 export type Config = z.infer<typeof configSchema>;
@@ -61,5 +69,7 @@ export function loadConfig(): Config {
     corsOrigin: process.env['CORS_ORIGIN'],
     retrieverMode: process.env['RETRIEVER_MODE'],
     replayMode: process.env['REPLAY_MODE'],
+    captureHeadful: process.env['CAPTURE_HEADFUL'],
+    captureSlowMo: process.env['CAPTURE_SLOW_MO'],
   });
 }

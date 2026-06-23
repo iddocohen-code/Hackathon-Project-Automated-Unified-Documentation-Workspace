@@ -33,7 +33,10 @@ const contextSources = [
 ];
 
 // Build the Playwright screenshot capture pointed at the running surf-console
-const captureBackend = new PlaywrightCapture(config.surfConsoleUrl);
+const captureBackend = new PlaywrightCapture(config.surfConsoleUrl, undefined, {
+  headful: config.captureHeadful,
+  slowMo: config.captureSlowMo,
+});
 
 // Assemble the runJob closure with all real dependencies
 const runJob = makeRunJob({

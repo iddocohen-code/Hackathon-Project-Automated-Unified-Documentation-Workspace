@@ -94,11 +94,19 @@ export class PlaywrightCapture implements ScreenshotCapture {
    * invalid/unwritable location to exercise the recording-degrade path.
    */
   private readonly videoTmpBaseDir: string;
+  private readonly headful: boolean;
+  private readonly slowMo: number;
 
-  constructor(baseUrl: string, videoTmpBaseDir?: string) {
+  constructor(
+    baseUrl: string,
+    videoTmpBaseDir?: string,
+    launchOptions?: { headful?: boolean; slowMo?: number },
+  ) {
     // Strip trailing slash so route (which starts with /) composes cleanly
     this.baseUrl = baseUrl.replace(/\/$/, '');
     this.videoTmpBaseDir = videoTmpBaseDir ?? tmpdir();
+    this.headful = launchOptions?.headful ?? false;
+    this.slowMo = launchOptions?.slowMo ?? 0;
   }
 
   /**
@@ -133,7 +141,7 @@ export class PlaywrightCapture implements ScreenshotCapture {
     const viewport = { width: 1280, height: 720 };
     const shouldRecord = target.interactions.length > 0;
 
-    const browser = await chromium.launch({ headless: true });
+    const browser = await chromium.launch({ headless: !this.headful, slowMo: this.slowMo });
 
     // Recording bookkeeping. The whole recording concern is OPTIONAL: any
     // failure setting it up degrades to videoWebm: undefined without losing
