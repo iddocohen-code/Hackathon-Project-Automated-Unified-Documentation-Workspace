@@ -26,7 +26,9 @@ export async function POST(req: Request) {
     httpOnly: true,
     sameSite: 'lax',
     secure: process.env.NODE_ENV === 'production',
-    path: '/admin',
+    // Site-wide so the public doc page can read it for the admin-only "Edit this
+    // doc" affordance (still httpOnly + signed; /admin stays middleware-gated).
+    path: '/',
     maxAge: Math.floor(SESSION_TTL_MS / 1000),
   });
   return res;

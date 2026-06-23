@@ -12,7 +12,8 @@ export async function POST() {
     httpOnly: true,
     sameSite: 'lax',
     secure: process.env.NODE_ENV === 'production',
-    path: '/admin',
+    // Match the login cookie's site-wide path so logout actually clears it.
+    path: '/',
     maxAge: 0,
   });
   return res;
