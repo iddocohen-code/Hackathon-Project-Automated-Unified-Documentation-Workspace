@@ -1,5 +1,5 @@
 import { chromium } from 'playwright';
-import type { Browser, BrowserContext } from 'playwright';
+import type { BrowserContext, Page } from 'playwright';
 import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -79,6 +79,29 @@ function labelToSlug(label: string): string {
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-|-$/g, '') + '-active'
   );
+}
+
+/**
+ * Injects a visible fake cursor (a red dot) that follows mouse events, so a
+ * headed/demo capture session shows the pointer gliding to and clicking
+ * controls — Playwright renders no cursor by default. Demo-only; never used
+ * on the headless path. Passed as a script string so it needs no DOM lib types.
+ */
+async function installDemoCursor(page: Page): Promise<void> {
+  await page.addScriptTag({
+    content: `
+      (function(){
+        if (document.getElementById('__demo_cursor__')) return;
+        var c = document.createElement('div');
+        c.id = '__demo_cursor__';
+        c.style.cssText = 'position:fixed;top:0;left:-100px;width:22px;height:22px;border-radius:50%;background:rgba(239,68,68,0.45);border:2px solid rgba(239,68,68,0.95);box-shadow:0 0 10px rgba(239,68,68,0.6);pointer-events:none;z-index:2147483647;margin-left:-11px;margin-top:-11px;transition:width .08s,height .08s,background .08s';
+        document.body.appendChild(c);
+        document.addEventListener('mousemove', function(e){ c.style.left=e.clientX+'px'; c.style.top=e.clientY+'px'; }, true);
+        document.addEventListener('mousedown', function(){ c.style.width='14px'; c.style.height='14px'; c.style.background='rgba(239,68,68,0.9)'; }, true);
+        document.addEventListener('mouseup', function(){ c.style.width='22px'; c.style.height='22px'; c.style.background='rgba(239,68,68,0.45)'; }, true);
+      })();
+    `,
+  });
 }
 
 /**
@@ -181,6 +204,14 @@ export class PlaywrightCapture implements ScreenshotCapture {
       // does NOT wait for WebSocket connections (unlike 'networkidle').
       await page.waitForLoadState('load');
 
+      // Demo mode: inject a visible cursor and park it center-screen so the
+      // audience can watch the pointer glide to and click controls.
+      if (this.headful) {
+        await installDemoCursor(page);
+        await page.mouse.move(viewport.width / 2, viewport.height / 2);
+        await page.waitForTimeout(500);
+      }
+
       const results: CapturedState[] = [];
 
       // Helper: screenshot the panel (scoped to selector) or full page
@@ -217,10 +248,38 @@ export class PlaywrightCapture implements ScreenshotCapture {
         }
 
         await control.waitFor({ state: 'visible' });
-        await control.click();
 
-        // Brief wait for reveal animation / state update
-        await page.waitForTimeout(500);
+        if (this.headful) {
+          // Human-like demo motion: scroll the control into view, then glide
+          // the visible cursor to it in small steps and click — no instant jumps.
+          await control.scrollIntoViewIfNeeded();
+          await page.waitForTimeout(400);
+          const box = await control.boundingBox();
+          if (box) {
+            const targetX = box.x + box.width / 2;
+            const targetY = box.y + box.height / 2;
+            const startX = targetX;
+            const startY = Math.max(8, targetY - 220);
+            const steps = 30;
+            for (let s = 1; s <= steps; s += 1) {
+              const t = s / steps;
+              await page.mouse.move(startX + (targetX - startX) * t, startY + (targetY - startY) * t);
+              await page.waitForTimeout(28);
+            }
+            await page.waitForTimeout(350);
+            await page.mouse.down();
+            await page.waitForTimeout(140);
+            await page.mouse.up();
+          } else {
+            await control.click();
+          }
+          // Let the reveal animation play before the screenshot.
+          await page.waitForTimeout(1100);
+        } else {
+          await control.click();
+          // Brief wait for reveal animation / state update
+          await page.waitForTimeout(500);
+        }
 
         const activatedBuffer = await screenshotPanel();
         const slug = labelToSlug(label);
