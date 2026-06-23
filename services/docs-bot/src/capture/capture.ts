@@ -205,11 +205,14 @@ export class PlaywrightCapture implements ScreenshotCapture {
       await page.waitForLoadState('load');
 
       // Demo mode: inject a visible cursor and park it center-screen so the
-      // audience can watch the pointer glide to and click controls.
+      // audience can watch the pointer glide to and click controls. We track
+      // the cursor's current position so each glide starts from where the dot
+      // already is (no teleport/jump before the glide).
+      const cursorPos = { x: viewport.width / 2, y: viewport.height / 2 };
       if (this.headful) {
         await installDemoCursor(page);
-        await page.mouse.move(viewport.width / 2, viewport.height / 2);
-        await page.waitForTimeout(500);
+        await page.mouse.move(cursorPos.x, cursorPos.y);
+        await page.waitForTimeout(400);
       }
 
       const results: CapturedState[] = [];
@@ -251,24 +254,27 @@ export class PlaywrightCapture implements ScreenshotCapture {
 
         if (this.headful) {
           // Human-like demo motion: scroll the control into view, then glide
-          // the visible cursor to it in small steps and click — no instant jumps.
+          // the visible cursor from its CURRENT position straight to the control
+          // (no teleport) and click. ~14ms/step = roughly 2x the earlier speed.
           await control.scrollIntoViewIfNeeded();
-          await page.waitForTimeout(400);
+          await page.waitForTimeout(300);
           const box = await control.boundingBox();
           if (box) {
             const targetX = box.x + box.width / 2;
             const targetY = box.y + box.height / 2;
-            const startX = targetX;
-            const startY = Math.max(8, targetY - 220);
+            const startX = cursorPos.x;
+            const startY = cursorPos.y;
             const steps = 30;
             for (let s = 1; s <= steps; s += 1) {
               const t = s / steps;
               await page.mouse.move(startX + (targetX - startX) * t, startY + (targetY - startY) * t);
-              await page.waitForTimeout(28);
+              await page.waitForTimeout(14);
             }
-            await page.waitForTimeout(350);
+            cursorPos.x = targetX;
+            cursorPos.y = targetY;
+            await page.waitForTimeout(250);
             await page.mouse.down();
-            await page.waitForTimeout(140);
+            await page.waitForTimeout(120);
             await page.mouse.up();
           } else {
             await control.click();
