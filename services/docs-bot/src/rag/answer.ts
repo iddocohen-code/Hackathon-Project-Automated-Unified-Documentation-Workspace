@@ -48,10 +48,19 @@ export async function answerQuery(
 
   const { answer, citedPassageIndices } = response.parsed_output;
 
-  // Assemble citations from the cited indices, guarding against out-of-range indices
+  // Assemble citations from the cited indices, guarding against out-of-range indices.
+  // Dedupe by docId: several cited sections can belong to the SAME doc, which would
+  // otherwise produce multiple citation rows pointing at one document. Passages are
+  // score-sorted, so the first occurrence per doc is its most-relevant section.
+  const seenDocIds = new Set<string>();
   const citations = citedPassageIndices
     .map((i) => passages[i])
     .filter((p): p is NonNullable<typeof p> => p != null)
+    .filter((p) => {
+      if (seenDocIds.has(p.docId)) return false;
+      seenDocIds.add(p.docId);
+      return true;
+    })
     .map((p) => ({
       docId: p.docId,
       title: p.docTitle,
