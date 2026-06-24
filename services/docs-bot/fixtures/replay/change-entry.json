@@ -1,35 +1,23 @@
 {
-  "id": "chg-replay",
+  "id": "chg-bb02ca10",
   "docId": "shark-mitigation",
   "summary": {
-    "headline": "Added one-press Emergency Shark Siren trigger to mitigation panel",
-    "detail": "Added the `Emergency Shark Siren` action button to `SharkMitigationCard`, wired to fire a zone-wide evacuation broadcast in under 500 ms with a single press and no confirmation dialog. This gives lifeguards an immediate evacuation trigger the moment a shark sighting is confirmed, replacing the previous three-sub-menu navigation path.",
-    "intentSource": "SURF-142 (Jira), #surf-safety (Slack)"
+    "headline": "Added Emergency Shark Siren one-press evacuation trigger to Mitigation Panel",
+    "detail": "Added the `Emergency Shark Siren` button wired to `triggerSiren()` as a new step in the protocol, broadcasting a zone-wide evacuation siren and flipping the zone status pill from Clear to Siren active. The runbook designates this control as the primary evacuation trigger, giving lifeguards a single prominent action to clear all zones immediately.",
+    "intentSource": "Shark Incident Response Runbook (Confluence)"
   },
   "severity": "critical",
-  "prUrl": "https://github.com/example/surf/pull/42",
+  "prUrl": "https://github.com/iddocohen-code/Hackathon-Project-Automated-Unified-Documentation-Workspace/pull/12",
   "contextRefs": [
-    {
-      "kind": "jira",
-      "ref": "SURF-142",
-      "url": "https://jira.example.com/browse/SURF-142",
-      "excerpt": "[SURF-142] Add one-press Emergency Shark Siren to mitigation panel — Lifeguards need to trigger a zone-wide beach evacuation instantly when a shark is detected in the water. The current mitigation panel requires navigating three sub-menus before the siren can be activa…"
-    },
-    {
-      "kind": "slack",
-      "ref": "#surf-safety",
-      "url": "https://slack.example.com/archives/C0SURFSAFE/p1731074400123456",
-      "excerpt": "Perfect. Summary: siren must be one tap, top of panel, no confirmation dialog, haptic feedback on mobile. This is the team consensus. Tagging SURF-142."
-    },
     {
       "kind": "confluence",
       "ref": "Shark Incident Response Runbook",
       "url": "https://confluence.example.com/display/SURFOPS/Shark+Incident+Response+Runbook",
-      "excerpt": "**The primary evacuation trigger is the Emergency Shark Siren button on the SURF Mitigation Panel.** 1. Open the SURF console app. 2. Navigate to the **Mitigation Panel** (home screen shortcut). 3. Tap the red **\"Emergency Shark Siren\"** button — it appears at the top of the panel and requires a sin"
+      "excerpt": "**The primary evacuation trigger is the Emergency Shark Siren button on the SURF Mitigation Panel.** 1. Open the SURF console app. 2. Navigate to the **Mitigation Panel** (home screen shortcut). 3. Tap the red **\"Emergency Shark Siren\"** button \u2014 it appears at the top of the panel and requires a sin"
     }
   ],
   "screenshotDiff": {
     "after": "/docs-screenshots/shark-mitigation/screenshot-v4-emergency-shark-siren-active.png"
   },
-  "createdAt": "2026-06-22T23:34:45.102Z"
+  "createdAt": "2026-06-23T16:05:16.115Z"
 }

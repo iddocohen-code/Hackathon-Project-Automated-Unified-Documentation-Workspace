@@ -8,15 +8,15 @@ Verify the shark detection via at least two independent sources — buoy telemet
 
 ## Step 2: Trigger the Emergency Shark Siren
 
-Open the **Mitigation Panel** and press the red **Emergency Shark Siren** button at the top of the `SharkMitigationCard`. This is the primary evacuation trigger: a single press fires a zone-wide evacuation broadcast in under 500 ms, with no confirmation dialog and haptic feedback on mobile.
+The **Emergency Shark Siren** is the primary zone-wide evacuation trigger. Once the sighting is confirmed, open the **Mitigation Panel** and press the red **Emergency Shark Siren** button at the top of the action row. This button calls `triggerSiren()` and broadcasts the evacuation siren across all zones immediately.
 
-The panel exposes two states. In the **default state**, the **Emergency Shark Siren** button sits at the top of the panel, ready for a single press. Press the button → the activated **Siren active** state takes over: the zone-wide evacuation banner broadcasts across the surf zone and the panel status flips to **Siren active**.
+The panel has two states. In the **default state**, the zone status pill reads **Clear** and no banner is shown. Press the **Emergency Shark Siren** button → the panel enters the **Siren active** state: an **Evacuation siren broadcasting across all zones** banner appears with an `alert-triangle` icon, and the zone status pill flips from **Clear** to **Siren active**.
 
-This action carries `critical` impact — it activates immediate zone-wide evacuation. Use it the moment a sighting is confirmed.
+This is a `critical` action — it activates immediate zone-wide evacuation across every monitored zone. Use it only on a confirmed sighting.
 
 ## Step 3: Clear the water
 
-Reinforce the siren broadcast using the standard PA system and activate the red flag protocol. Direct all surfers and swimmers to exit the water immediately. Coordinate with beach marshals to enforce the exclusion zone.
+Reinforce the siren with the standard PA system and activate the red flag protocol. Direct all surfers and swimmers to exit the water immediately. Coordinate with beach marshals to enforce the exclusion zone.
 
 ## Step 4: Establish a safety perimeter
 
@@ -28,4 +28,4 @@ Maintain continuous observation until the shark has moved outside the perimeter 
 
 ---
 
-*Version 4 — last updated March 2025. One-press Emergency Shark Siren now serves as the primary evacuation trigger; manual PA protocol remains in effect as reinforcement.*
+*Version 4 — last updated March 2025. Emergency Shark Siren integrated as the primary zone-wide evacuation trigger on the Mitigation Panel.*
